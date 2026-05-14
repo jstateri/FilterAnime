@@ -2,7 +2,7 @@
 // Proxies MyAnimeList (Jikan v4) and AniList (GraphQL) APIs
 // Run: deno run --allow-net --allow-read server.ts
 
-const PORT = 8000;
+const PORT = parseInt(Deno.env.get("PORT") || "8000");
 
 // ─── CORS helper ─────────────────────────────────────────────────────────────
 function corsHeaders() {
