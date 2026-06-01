@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- 
+    =============================================================================
+    recs.html - Smart Recommendations Engine
+    
+    Generates tailored anime recommendations based on the user's top-rated anime
+    from their MyAnimeList profile, aggregated via the AniList GraphQL API.
+    =============================================================================
+  -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Recommendations</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/main.css" />
+
+  <style>
+    /* ── Recs-specific styles ────────────────────────────────── */
+    #topbar { padding: 14px 28px; }
+    #topbar h1 { font-size: 2rem; }
+    .back-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--muted); font-size: .84rem; border-radius: 8px;
+      padding: 6px 14px; text-decoration: none; transition: border-color .15s, color .15s;
+    }
+    .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    #content { padding: 28px; position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; }
+
+    /* ── Loading / empty ──────────────────────────────────────── */
+    #loadingState, #emptyState {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 60vh; gap: 16px;
+      color: var(--muted); text-align: center;
+    }
+    .spinner {
+      width: 48px; height: 48px; border-radius: 50%;
+      border: 3px solid var(--border); border-top-color: var(--accent);
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loadingState h3, #emptyState h3 {
+      font-family: var(--font-head); font-size: 1.6rem; letter-spacing: .04em; color: var(--text); margin: 0;
+    }
+    #emptyState .icon { font-size: 4rem; opacity: .3; }
+    .go-import {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: var(--accent); color: #fff; border: none;
+      border-radius: 10px; font-size: .9rem; font-weight: 600;
+      padding: 10px 22px; text-decoration: none; transition: background .15s, transform .1s;
+    }
+    .go-import:hover { background: #f06030; transform: translateY(-1px); color: #fff; }
+
+    /* ── Controls ─────────────────────────────────────────────── */
+    .recs-controls {
+      display: flex; justify-content: flex-end; align-items: center;
+      margin-bottom: 24px; padding: 14px 20px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    }
+    .form-check-input:checked { background-color: var(--accent); border-color: var(--accent); }
+
+    /* ── Grid ─────────────────────────────────────────────────── */
+    .recs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    @media (max-width: 640px) {
+      #content { padding: 14px; }
+      .recs-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .recs-controls { flex-direction: column; align-items: flex-start; gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar" class="d-flex align-items-center justify-content-between gap-3">
+  <div class="d-flex align-items-center gap-3">
+    <h1><i class="bi bi-stars" style="color:var(--accent2); margin-right: 5px;"></i> RECOMMENDATIONS</h1>
+    <span id="usernameBadge" style="font-size:.8rem;color:var(--muted);"></span>
+  </div>
+  <a href="/" class="back-btn"><i class="bi bi-arrow-left"></i> Browser</a>
+</div>
+
+<div id="content">
+
+  <!-- LOADING -->
+  <div id="loadingState">
+    <div class="spinner"></div>
+    <h3>Finding your next favorite…</h3>
+    <p style="color:var(--muted);font-size:.85rem">Crunching millions of community votes</p>
+  </div>
+
+  <!-- EMPTY -->
+  <div id="emptyState" style="display:none">
+    <div class="icon">🤔</div>
+    <h3>No list found</h3>
+    <p style="color:var(--muted);font-size:.88rem;margin:4px 0 20px">Import your MAL list from the browser first.</p>
+    <a href="/" class="go-import"><i class="bi bi-box-arrow-in-right"></i> Go to Browser</a>
+  </div>
+
+  <!-- FILTER BAR & CONTROLS -->
+  <div id="filterbar" style="margin-bottom: 24px;">
+    
+    <!-- Genre (multi-select with include/exclude) -->
+    <div class="dropdown">
+      <button class="btn dropdown-toggle" id="genreToggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+        <i class="bi bi-tags"></i> Genre
+        <span id="genreCount" style="color:var(--accent);font-weight:700;"></span>
+      </button>
+      <ul class="dropdown-menu" id="genreMenu" style="min-width:230px;">
+        <li class="px-2 pb-1">
+          <input type="text" class="genre-search" id="genreSearch" placeholder="Search genres…" />
+        </li>
+        <!-- Items injected by view.js -->
+      </ul>
+    </div>
+
+    <!-- Year (range slider) -->
+    <div class="dropdown">
+      <button class="btn dropdown-toggle" id="yearToggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+        <i class="bi bi-calendar3"></i> Year
+        <span id="yearCount" style="color:var(--accent);font-weight:700;"></span>
+      </button>
+      <div class="dropdown-menu" id="yearMenu" style="min-width:240px; padding:12px 20px 12px;">
+        <div style="text-align:center; font-size:1.1rem; font-family:var(--font-head); letter-spacing:.05em; color:var(--accent); margin-bottom:8px;">
+          <span id="yearDisplayMin">1970</span> <span style="color:var(--muted); font-size:0.9rem; font-family:var(--font-body); padding:0 4px;">—</span> <span id="yearDisplayMax">2027</span>
+        </div>
+        <div class="multi-range">
+          <input type="range" id="yearMinSlider" min="1970" max="2027" value="1970">
+          <input type="range" id="yearMaxSlider" min="1970" max="2027" value="2027">
+          <div class="slider-track">
+            <div class="slider-fill" id="yearSliderFill"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toggle Exclusion -->
+    <div class="form-check form-switch ms-auto" style="display:flex; align-items:center; height:38px; padding-left: 2.5em; margin:0;">
+      <input class="form-check-input" type="checkbox" role="switch" id="excludeToggle" checked style="margin-top:0;">
+      <label class="form-check-label ms-2" for="excludeToggle" style="color:var(--text);font-size:.9rem;cursor:pointer;white-space:nowrap;">
+        Exclude My List
+      </label>
+    </div>
+
+  </div>
+
+  <!-- GRID -->
+  <div class="recs-grid" id="mainRecsGrid"></div>
+
+</div><!-- /content -->
+
+<!-- ── Detail modal ────────────────────────────────────────────────────── -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Recs app entry point -->
+<script type="module">
+  import { init } from '/js/recs/controller.js';
+  document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>
