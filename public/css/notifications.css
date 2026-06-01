@@ -1,0 +1,118 @@
+/* ── Notifications Dropdown ──────────────────────────────────────────────── */
+.notif-container { position: relative; }
+
+.notif-bell-btn {
+  background: transparent; border: none;
+  color: var(--muted); font-size: 1.15rem;
+  padding: 4px 8px; cursor: pointer; transition: color .15s;
+  position: relative; display: flex; align-items: center;
+}
+.notif-bell-btn:hover { color: #00b0f0; }
+.notif-bell-btn.has-unread { color: #00b0f0; }
+
+.notif-badge {
+  position: absolute; top: 0; right: 2px;
+  background: #ef4444; color: #fff;
+  font-size: .6rem; font-weight: 800; font-family: var(--font-body);
+  padding: 2px 5px; border-radius: 10px; line-height: 1;
+  box-shadow: 0 0 0 2px var(--bg-panel);
+}
+
+.notif-dropdown {
+  position: absolute; 
+  top: calc(100% + 10px); 
+  left: 0; /* <-- Changed from right: 0 */
+  width: 360px; 
+  background: #151e32;
+  border: 1px solid #253452; 
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  display: none; 
+  flex-direction: column; 
+  z-index: 1000;
+  overflow: hidden;
+}
+.notif-dropdown.show { display: flex; }
+
+.notif-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 16px; background: #151e32;
+  border-bottom: 1px solid #253452;
+}
+
+.notif-tabs-container {
+  display: flex; gap: 16px;
+}
+.notif-tab-btn {
+  background: transparent; border: none; border-bottom: 2px solid transparent;
+  padding: 12px 0 10px; color: #64748b; font-size: .85rem; font-weight: 700;
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+  transition: all 0.2s ease;
+}
+.notif-tab-btn:hover { color: #94a3b8; }
+.notif-tab-btn.active { color: #fff; border-bottom-color: #00b0f0; }
+
+.notif-count-pill {
+  background: #334155; color: #cbd5e1;
+  padding: 2px 6px; border-radius: 4px; font-size: .7rem; font-weight: 600;
+}
+.notif-tab-btn.active .notif-count-pill { background: #00b0f0; color: #fff; }
+
+.notif-mark-read {
+  color: #64748b; font-size: .75rem; cursor: pointer;
+  display: flex; align-items: center; gap: 5px; transition: color .15s;
+}
+.notif-mark-read:hover { color: #94a3b8; }
+
+.notif-list {
+  max-height: 420px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: #253452 transparent;
+}
+.notif-list::-webkit-scrollbar { width: 6px; }
+.notif-list::-webkit-scrollbar-thumb { background: #253452; border-radius: 3px; }
+
+/* ── Notification Items ──────────────────────────────────────────────────── */
+.notif-item {
+  display: flex; gap: 12px; padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+  background: #111827; text-decoration: none;
+  cursor: pointer; transition: background .15s;
+}
+.notif-item:hover { background: #1e293b; }
+
+.notif-item.unread { background: #1c273d; border-left: 2px solid #00b0f0; padding-left: 14px; }
+.notif-item.unread:hover { background: #23314a; }
+
+.notif-cover {
+  width: 48px; height: 68px; border-radius: 4px;
+  object-fit: cover; flex-shrink: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.notif-content { display: flex; flex-direction: column; justify-content: center; gap: 5px; }
+
+.notif-title-row { font-size: .82rem; line-height: 1.4; color: #475f85; }
+.notif-title-main { color: #8ca6d4; font-weight: 500; }
+.notif-title-ep { color: #00b0f0; }
+
+.notif-time { font-size: .7rem; color: #475f85; }
+
+.notif-empty { padding: 30px; text-align: center; color: var(--muted); font-size: .85rem; }
+
+/* ── Mobile Responsiveness ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .notif-dropdown {
+    /* Break it out of the parent container's relative positioning */
+    position: fixed; 
+    top: 70px; /* Adjust this slightly if your navbar overlaps it */
+    left: 50%;
+    right: auto;
+    
+    /* Center it perfectly on the screen */
+    transform: translateX(-50%); 
+    
+    /* Let it fill the mobile screen nicely */
+    width: 92vw; 
+    max-width: 400px; 
+    z-index: 9999;
+  }
+}
