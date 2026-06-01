@@ -1,50 +1,37 @@
-# 🎌 Anime Browser — MVC Edition
+# 🎌 Anime Browser & Personal Dashboard
 
-## Project Structure
+A fast, lightweight, and highly responsive Anime Browser built with a Deno backend and a Vanilla JavaScript frontend. It aggregates data from the AniList GraphQL API and the MyAnimeList (Jikan) REST API, allowing users to discover new shows, import their personal watch lists, track release schedules, and generate rich statistical breakdowns of their viewing habits.
 
-```
-anime-browser/
-├── server.ts               # Deno backend — API proxy + static file server
-├── deno.json               # Task runner config
-└── public/                 # All frontend files (served as static assets)
-    ├── index.html          # Browser page — pure HTML shell
-    ├── stats.html          # Stats page  — pure HTML shell
-    ├── css/
-    │   └── main.css        # Shared styles
-    └── js/
-        ├── config.js       # Shared constants (GENRES, API_BASE, etc.)
-        ├── state.js        # App state + localStorage helpers
-        ├── api.js          # Model — all fetch/network calls
-        ├── view.js         # View  — all DOM rendering for browser page
-        ├── controller.js   # Controller — events, wires api → view
-        └── stats/
-            ├── model.js    # Stats model — pure data computation
-            ├── view.js     # Stats view  — Chart.js rendering
-            └── controller.js # Stats controller — orchestrates stats page
-```
+## ✨ Features
 
-## MVC Responsibilities
+* **Unified API Browsing:** Seamlessly toggle between AniList and MyAnimeList data sources within the same UI.
+* **Deep Filtering & Search:** Filter by format, airing status, release year, genres (include/exclude), and granular AniList tags (including minimum tag percentages and spoiler toggles).
+* **List Synchronization:** Import your personal anime list using your MyAnimeList username or by uploading a standard MAL XML export file.
+* **Smart Release Notifications:** A built-in notification engine cross-references your "Watching" list with live AniList broadcast schedules to instantly alert you when new episodes air or are upcoming.
+* **Personalized Stats Dashboard:** A dedicated `/stats.html` page uses Chart.js to visualize your viewing habits, including score distributions, genre radar charts, decade breakdowns, and "Hot Takes" (how your scores compare to global averages).
+* **Seamless Exploration:** Click on any anime to open a detailed modal featuring synopses, trailers, prequel/sequel relational mapping, and dynamic recommendations—all without leaving the page.
 
-| Layer | File(s) | Does |
-|---|---|---|
-| **Model** | `js/api.js`, `js/stats/model.js` | Fetch data, transform data — zero DOM access |
-| **View** | `js/view.js`, `js/stats/view.js`, `css/main.css` | Render DOM, draw charts — zero fetch/state writes |
-| **Controller** | `js/controller.js`, `js/stats/controller.js` | Handle events, call Model, pass results to View |
-| **State** | `js/state.js` | Single source of truth, localStorage sync |
-| **Config** | `js/config.js` | Constants shared across all modules |
+## 🛠️ Architecture & Tech Stack
 
-## Run
+This project strictly adheres to the **Model-View-Controller (MVC)** design pattern on the frontend to keep data logic, UI rendering, and event handling strictly separated. 
 
-```bash
-deno task serve
-```
+* **Frontend:** Vanilla ES Modules (JavaScript), HTML5, CSS3.
+* **UI Libraries:** Bootstrap 5 (for grid and modals), Bootstrap Icons, Chart.js (for data visualization).
+* **Backend:** Deno (TypeScript).
+* **Data Sources:** AniList GraphQL API, Jikan V4 API.
 
-Then open **http://localhost:8000**
+### Why Deno?
+The Deno backend (`server.ts`) serves two primary purposes:
+1.  **Static File Serving:** Delivers the frontend HTML, CSS, and JS modules.
+2.  **API Proxying:** Routes requests to Jikan and AniList through `/api/mal` and `/api/anilist` endpoints to cleanly bypass browser CORS restrictions and safely aggregate complex queries before sending them to the client.
 
-## Features
-- 🔍 Search, filter by Type / Genre / Year / Status, sort by score or date
-- 🏷️ Include (`+`) and exclude (`-`) genres simultaneously
-- 📺 Browse AniList, MyAnimeList (Jikan v4), or your imported list
-- 👁️ Hide anime you've already watched from global results
-- 📥 Import list via MAL username or XML export
-- 📊 Stats page — score distribution, genre radar, decade timeline, completion rings, and more
+## 🚀 Getting Started
+
+### Prerequisites
+You will need to have [Deno](https://deno.land/) installed on your machine.
+
+### Installation & Execution
+1. **Clone the repository:**
+   ```bash
+   git clone [https://github.com/yourusername/anime-browser.git](https://github.com/yourusername/anime-browser.git)
+   cd anime-browser
