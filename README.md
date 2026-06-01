@@ -1,59 +1,50 @@
-# 🎌 Anime Browser
+# 🎌 Anime Browser — MVC Edition
 
-A fast, dark-themed anime browser that pulls data from **AniList** (GraphQL) and **MyAnimeList** (via Jikan v4 — no API key needed).
+## Project Structure
 
-## Features
-- 🔍 Search by title
-- 📺 Filter by Type: TV, Movie, OVA, ONA, Special, Music
-- 🏷️ Filter by 40+ genres (Action, Isekai, Mecha, Romance, etc.)
-- 📡 Filter by Status: Airing, Completed, Upcoming
-- ↕️ Sort by MAL/AniList Score or Release Date
-- 📄 Paginated results (24 per page)
-- 🪟 Click any card to see full details
-- 🔄 Switch between AniList and MyAnimeList sources
-
-## Requirements
-
-- [Deno](https://deno.land/) v1.38+
-
-Install Deno:
-```bash
-# macOS/Linux
-curl -fsSL https://deno.land/install.sh | sh
-
-# Windows (PowerShell)
-irm https://deno.land/install.ps1 | iex
 ```
+anime-browser/
+├── server.ts               # Deno backend — API proxy + static file server
+├── deno.json               # Task runner config
+└── public/                 # All frontend files (served as static assets)
+    ├── index.html          # Browser page — pure HTML shell
+    ├── stats.html          # Stats page  — pure HTML shell
+    ├── css/
+    │   └── main.css        # Shared styles
+    └── js/
+        ├── config.js       # Shared constants (GENRES, API_BASE, etc.)
+        ├── state.js        # App state + localStorage helpers
+        ├── api.js          # Model — all fetch/network calls
+        ├── view.js         # View  — all DOM rendering for browser page
+        ├── controller.js   # Controller — events, wires api → view
+        └── stats/
+            ├── model.js    # Stats model — pure data computation
+            ├── view.js     # Stats view  — Chart.js rendering
+            └── controller.js # Stats controller — orchestrates stats page
+```
+
+## MVC Responsibilities
+
+| Layer | File(s) | Does |
+|---|---|---|
+| **Model** | `js/api.js`, `js/stats/model.js` | Fetch data, transform data — zero DOM access |
+| **View** | `js/view.js`, `js/stats/view.js`, `css/main.css` | Render DOM, draw charts — zero fetch/state writes |
+| **Controller** | `js/controller.js`, `js/stats/controller.js` | Handle events, call Model, pass results to View |
+| **State** | `js/state.js` | Single source of truth, localStorage sync |
+| **Config** | `js/config.js` | Constants shared across all modules |
 
 ## Run
 
 ```bash
-deno run --allow-net --allow-read --watch server.ts
+deno task serve
 ```
 
-Then open **http://localhost:8000** in your browser.
+Then open **http://localhost:8000**
 
-## API Endpoints (used internally)
-
-| Endpoint | Description |
-|---|---|
-| `GET /api/anilist` | AniList GraphQL proxy |
-| `GET /api/mal` | MyAnimeList via Jikan v4 |
-| `GET /api/genres` | List of all genres |
-
-### Query Parameters (both endpoints)
-| Param | Description | Example |
-|---|---|---|
-| `q` | Search query | `q=attack+on+titan` |
-| `type` | Anime type | `type=tv` |
-| `genres` | Comma-separated genres | `genres=Action,Mecha` |
-| `status` | Airing status | `status=airing` |
-| `sort` | Sort order | `sort=score_desc` |
-| `page` | Page number | `page=2` |
-| `limit` | Results per page (max 25 for MAL) | `limit=24` |
-
-## Notes
-
-- **AniList** data is free, fast, and has rich metadata.
-- **MyAnimeList** uses [Jikan v4](https://jikan.moe/) — free, no key needed. Rate-limited to ~3 req/sec.
-- No authentication or API keys required for either source.
+## Features
+- 🔍 Search, filter by Type / Genre / Year / Status, sort by score or date
+- 🏷️ Include (`+`) and exclude (`-`) genres simultaneously
+- 📺 Browse AniList, MyAnimeList (Jikan v4), or your imported list
+- 👁️ Hide anime you've already watched from global results
+- 📥 Import list via MAL username or XML export
+- 📊 Stats page — score distribution, genre radar, decade timeline, completion rings, and more
