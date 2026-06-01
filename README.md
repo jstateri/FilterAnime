@@ -1,3 +1,4 @@
+Markdown
 # 🎌 Anime Browser & Personal Dashboard
 
 A fast, lightweight, and highly responsive Anime Browser built with a Deno backend and a Vanilla JavaScript frontend. It aggregates data from the AniList GraphQL API and the MyAnimeList (Jikan) REST API, allowing users to discover new shows, import their personal watch lists, track release schedules, and generate rich statistical breakdowns of their viewing habits.
@@ -35,3 +36,49 @@ You will need to have [Deno](https://deno.land/) installed on your machine.
    ```bash
    git clone [https://github.com/yourusername/anime-browser.git](https://github.com/yourusername/anime-browser.git)
    cd anime-browser
+Start the development server:
+Using the built-in Deno task runner:
+
+Bash
+deno task serve
+Alternatively, run it manually:
+
+Bash
+deno run --allow-net --allow-read --watch server.ts
+Open the application:
+Navigate to http://localhost:8000 in your web browser.
+
+📂 Project Structure
+Plaintext
+├── deno.json             # Deno configuration and task scripts
+├── server.ts             # Backend proxy and static file server
+└── public/
+    ├── index.html        # Main browser view
+    ├── stats.html        # Statistics dashboard view
+    ├── css/
+    │   ├── main.css           # Global styles and grid layouts
+    │   └── notifications.css  # Notification dropdown styling
+    └── js/
+        ├── api.js        # Data fetching (Model)
+        ├── config.js     # Shared constants (Genres, Years, etc.)
+        ├── controller.js # Main event listeners and logic coordinator
+        ├── state.js      # Centralized state management & LocalStorage
+        ├── view.js       # DOM manipulation and HTML generation
+        ├── notifications/# Encapsulated MVC for the notification bell
+        └── stats/        # Encapsulated MVC for the Chart.js dashboard
+🤝 Contributing
+Contributions, issues, and feature requests are always welcome!
+If you want to contribute:
+
+Fork the project.
+
+Create your feature branch (git checkout -b feature/AmazingFeature).
+
+Commit your changes (git commit -m 'Add some AmazingFeature').
+
+Push to the branch (git push origin feature/AmazingFeature).
+
+Open a Pull Request.
+
+📄 License
+Distributed under the MIT License.
