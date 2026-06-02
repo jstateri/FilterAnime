@@ -23,6 +23,7 @@ export const state = {
   yearActive: false,
   status:     '',
   sort:       'score_desc',
+  minScore:   0,
 
   // Pagination
   page:       1,
@@ -32,6 +33,7 @@ export const state = {
 
   // UI toggle
   hideMyList: false,
+  viewMode:   localStorage.getItem('viewMode') || 'grid',
 };
 
 // ── User anime list (persisted) ────────────────────────────────────────────

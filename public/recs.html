@@ -75,6 +75,8 @@
     }
 
     @media (max-width: 640px) {
+      #topbar { padding: 12px 14px; }
+      #topbar h1 { font-size: 1.5rem; }
       #content { padding: 14px; }
       .recs-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
       .recs-controls { flex-direction: column; align-items: flex-start; gap: 10px; }
@@ -84,12 +86,20 @@
 <body>
 
 <!-- TOP BAR -->
-<div id="topbar" class="d-flex align-items-center justify-content-between gap-3">
-  <div class="d-flex align-items-center gap-3">
+<div id="topbar" class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+  <div class="d-flex align-items-center gap-3 flex-wrap">
     <h1><i class="bi bi-stars" style="color:var(--accent2); margin-right: 5px;"></i> RECOMMENDATIONS</h1>
     <span id="usernameBadge" style="font-size:.8rem;color:var(--muted);"></span>
   </div>
-  <a href="/" class="back-btn"><i class="bi bi-arrow-left"></i> Browser</a>
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <a href="/schedule.html" class="stats-link" style="margin-right:8px;">
+      <i class="bi bi-calendar3"></i> Schedule
+    </a>
+    <a href="/stats.html" class="stats-link" style="margin-right:8px;">
+      <i class="bi bi-bar-chart-fill"></i> My Stats
+    </a>
+    <a href="/" class="back-btn"><i class="bi bi-arrow-left"></i> Browser</a>
+  </div>
 </div>
 
 <div id="content">

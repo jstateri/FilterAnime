@@ -9,8 +9,8 @@
  * 
  * Execution: `deno run --allow-net --allow-read --watch server.ts`
  */
-const PORT = parseInt(Deno.env.get("PORT") || "8000"); //deployement
-//const PORT = 8000; //local
+//const PORT = parseInt(Deno.env.get("PORT") || "8000"); //deployement
+const PORT = 8000; //local
 
 // Resolve the project root relative to this script file so the server works
 // regardless of which directory `deno run` is executed from.
@@ -97,7 +97,7 @@ async function serveStatic(pathname: string): Promise<Response | null> {
 async function fetchMALAnime(params: {
   q?: string; type?: string; genres?: string; genres_exclude?: string;
   status?: string; years?: string; order_by?: string; sort?: string;
-  page?: number; limit?: number;
+  page?: number; limit?: number; min_score?: number;
 }) {
   const query = new URLSearchParams();
   if (params.q)              query.set("q",      params.q);
@@ -124,6 +124,7 @@ async function fetchMALAnime(params: {
 
   if (params.order_by) query.set("order_by", params.order_by);
   if (params.sort)     query.set("sort",     params.sort);
+  if (params.min_score) query.set("min_score", String(params.min_score));
   query.set("page",  String(params.page  ?? 1));
   query.set("limit", String(params.limit ?? 24));
   query.set("sfw", "false");
@@ -142,14 +143,23 @@ const AL_CORE_GENRES = new Set([
 ]);
 
 const GENRE_MAP: Record<string, number> = {
-  "Action":1,"Adventure":2,"Avant Garde":5,"Boys Love":28,"Comedy":4,
-  "Demons":6,"Drama":8,"Ecchi":9,"Fantasy":10,"Girls Love":26,"Gourmet":47,
-  "Harem":35,"Horror":14,"Isekai":62,"Iyashikei":63,"Josei":43,"Kids":15,
-  "Magic":16,"Mahou Shoujo":64,"Martial Arts":17,"Mecha":18,"Military":38,
-  "Music":19,"Mystery":7,"Parody":20,"Psychological":40,"Reincarnation":73,
-  "Reverse Harem":56,"Romance":22,"School":23,"Sci-Fi":24,"Seinen":42,
-  "Shoujo":25,"Shounen":27,"Slice of Life":36,"Space":29,"Sports":30,
-  "Super Power":31,"Supernatural":37,"Suspense":41,"Thriller":41,"Vampire":32,
+  "Action": 1, "Adventure": 2, "Avant Garde": 5, "Award Winning": 46, "Boys Love": 28,
+  "Comedy": 4, "Drama": 8, "Fantasy": 10, "Girls Love": 26, "Gourmet": 47, "Horror": 14,
+  "Mystery": 7, "Romance": 22, "Sci-Fi": 24, "Slice of Life": 36, "Sports": 30,
+  "Supernatural": 37, "Suspense": 41, "Ecchi": 9, "Erotica": 49, "Hentai": 12,
+  "Josei": 43, "Kids": 15, "Seinen": 42, "Shoujo": 25, "Shounen": 27, "Adult Cast": 50,
+  "Anthropomorphic": 51, "CGDCT": 52, "Childcare": 53, "Combat Sports": 54,
+  "Crossdressing": 81, "Delinquents": 55, "Detective": 39, "Educational": 56,
+  "Gag Humor": 57, "Gore": 58, "Harem": 35, "High Stakes Game": 59, "Historical": 13,
+  "Idols (Female)": 60, "Idols (Male)": 61, "Isekai": 62, "Iyashikei": 63,
+  "Love Polygon": 64, "Magical Sex Shift": 65, "Mahou Shoujo": 66, "Martial Arts": 17,
+  "Mecha": 18, "Medical": 67, "Military": 38, "Music": 19, "Mythology": 6,
+  "Organized Crime": 68, "Otaku Culture": 69, "Parody": 20, "Performing Arts": 70,
+  "Pets": 71, "Psychological": 40, "Racing": 3, "Reincarnation": 72, "Reverse Harem": 73,
+  "Love Status Quo": 74, "Samurai": 21, "School": 23, "Showbiz": 75, "Space": 29,
+  "Strategy Game": 11, "Super Power": 31, "Survival": 76, "Team Sports": 77,
+  "Time Travel": 78, "Vampire": 32, "Video Game": 79, "Visual Arts": 80,
+  "Workplace": 48, "Urban Fantasy": 82, "Villainess": 83
 };
 
 function cleanAniListTag(t: string): string {
@@ -164,7 +174,7 @@ async function fetchAniListAnime(vars: Record<string, unknown>) {
            $genres:[String],$genresExclude:[String],$tags:[String],$tagsExclude:[String],
            $year:Int,$startDateGreater:FuzzyDateInt,$startDateLesser:FuzzyDateInt,
            $status:MediaStatus,$sort:[MediaSort],$idMalIn:[Int],$idMalNotIn:[Int],
-           $minimumTagRank:Int) {
+           $minimumTagRank:Int,$averageScoreGreater:Int) {
       Page(page:$page,perPage:$perPage) {
         pageInfo { total currentPage lastPage hasNextPage perPage }
         media(
@@ -176,6 +186,7 @@ async function fetchAniListAnime(vars: Record<string, unknown>) {
           status:$status, sort:$sort, type:ANIME,
           isAdult:false,
           minimumTagRank:$minimumTagRank,
+          averageScore_greater:$averageScoreGreater,
           idMal_in:$idMalIn, idMal_not_in:$idMalNotIn
         ) {
           id idMal
@@ -186,6 +197,14 @@ async function fetchAniListAnime(vars: Record<string, unknown>) {
           season seasonYear
           studios(isMain:true) { nodes { name } }
           tags { name rank isMediaSpoiler isGeneralSpoiler category }
+          characters(perPage: 3, sort: ROLE) {
+            edges {
+              node { id }
+              voiceActors {
+                languageV2
+              }
+            }
+          }
           description(asHtml:false) siteUrl
           externalLinks { site url }
         }
@@ -248,6 +267,7 @@ function buildAniListVars(
   const sortMap: Record<string, string[]> = {
     score_desc:["SCORE_DESC"], score_asc:["SCORE"],
     date_desc:["START_DATE_DESC"], date_asc:["START_DATE"],
+    popularity_desc:["POPULARITY_DESC"], popularity_asc:["POPULARITY"],
   };
 
   // Year / decade range
@@ -279,6 +299,8 @@ function buildAniListVars(
 
   vars.sort = sortMap[p.get("sort") ?? "score_desc"] ?? ["SCORE_DESC"];
   if (minTagRank > 0) vars.minimumTagRank = minTagRank;
+  const minScore = parseFloat(p.get("min_score") ?? "0") || 0;
+  if (minScore > 0) vars.averageScoreGreater = Math.round(minScore * 10);
 
   if (yearList.length === 1) {
     vars.year = yearList[0];
@@ -335,10 +357,19 @@ async function handler(req: Request): Promise<Response> {
   if (url.pathname === "/api/mal") {
     try {
       const p    = url.searchParams;
-      const gIds = (p.get("genres")?.split(",").filter(Boolean) ?? [])
-        .map(g => GENRE_MAP[g]).filter(Boolean).join(",");
-      const exIds = (p.get("genres_exclude")?.split(",").filter(Boolean) ?? [])
-        .map(g => GENRE_MAP[g]).filter(Boolean).join(",");
+      const gList = [
+        ...(p.get("genres")?.split(",") ?? []),
+        ...(p.get("tags_in")?.split(",") ?? [])
+      ].filter(Boolean);
+      
+      const exList = [
+        ...(p.get("genres_exclude")?.split(",") ?? []),
+        ...(p.get("tags_ex")?.split(",") ?? []),
+        "Erotica", "Hentai"
+      ].filter(Boolean);
+
+      const gIds = gList.map(g => GENRE_MAP[g]).filter(Boolean).join(",");
+      const exIds = exList.map(g => GENRE_MAP[g]).filter(Boolean).join(",");
 
       const sortRaw  = p.get("sort") ?? "score_desc";
       const orderMap: Record<string, { order_by: string; sort: string }> = {
@@ -346,6 +377,8 @@ async function handler(req: Request): Promise<Response> {
         score_desc: { order_by: "score",      sort: "desc" },
         date_asc:   { order_by: "start_date", sort: "asc"  },
         date_desc:  { order_by: "start_date", sort: "desc" },
+        popularity_asc:  { order_by: "members", sort: "asc"  },
+        popularity_desc: { order_by: "members", sort: "desc" },
       };
       const { order_by, sort } = orderMap[sortRaw] ?? { order_by: "score", sort: "desc" };
 
@@ -359,6 +392,7 @@ async function handler(req: Request): Promise<Response> {
         order_by, sort,
         page:  parseInt(p.get("page")  ?? "1"),
         limit: parseInt(p.get("limit") ?? "24"),
+        min_score: p.get("min_score") ? parseFloat(p.get("min_score") as string) : undefined,
       }));
     } catch (e) {
       return jsonResponse({ error: String(e) }, 500);
@@ -445,7 +479,15 @@ async function handler(req: Request): Promise<Response> {
   const staticRes = await serveStatic(url.pathname);
   if (staticRes) return staticRes;
 
-  return new Response("Not found", { status: 404 });
+  try {
+    const data = await Deno.readFile(`${ROOT}/public/404.html`);
+    return new Response(data, {
+      status: 404,
+      headers: { "Content-Type": "text/html", ...corsHeaders() },
+    });
+  } catch {
+    return new Response("Not found", { status: 404 });
+  }
 }
 
 console.log(`🎌 Anime Browser (MVC) → http://localhost:${PORT}`);

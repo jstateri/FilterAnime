@@ -53,6 +53,9 @@
   </div>
 
   <div class="d-flex align-items-center gap-2 flex-wrap">
+    <a href="/schedule.html" class="stats-link" style="margin-right:8px;">
+      <i class="bi bi-calendar3"></i> Schedule
+    </a>
     <a href="/recs.html" class="stats-link" style="margin-right:8px;">
       <i class="bi bi-stars"></i> Recommendations
     </a>
@@ -164,6 +167,22 @@
     </ul>
   </div>
 
+  <!-- Min Score -->
+  <div class="dropdown">
+    <button class="btn dropdown-toggle" id="minScoreToggle" data-bs-toggle="dropdown">
+      <i class="bi bi-star-fill"></i> Min Score
+    </button>
+    <ul class="dropdown-menu" id="minScoreMenu">
+      <li><span class="dropdown-item active-item" data-value="0">Any Score</span></li>
+      <li><span class="dropdown-item" data-value="4">Score > 4</span></li>
+      <li><span class="dropdown-item" data-value="5">Score > 5</span></li>
+      <li><span class="dropdown-item" data-value="6">Score > 6</span></li>
+      <li><span class="dropdown-item" data-value="7">Score > 7</span></li>
+      <li><span class="dropdown-item" data-value="8">Score > 8</span></li>
+      <li><span class="dropdown-item" data-value="9">Score > 9</span></li>
+    </ul>
+  </div>
+
   <!-- Sort -->
   <div class="dropdown">
     <button class="btn dropdown-toggle" id="sortToggle" data-bs-toggle="dropdown">
@@ -172,9 +191,17 @@
     <ul class="dropdown-menu" id="sortMenu">
       <li><span class="dropdown-item active-item" data-value="score_desc">Score ↓</span></li>
       <li><span class="dropdown-item" data-value="score_asc">Score ↑</span></li>
+      <li><span class="dropdown-item" data-value="popularity_desc">Popularity ↓</span></li>
+      <li><span class="dropdown-item" data-value="popularity_asc">Popularity ↑</span></li>
       <li><span class="dropdown-item" data-value="date_desc">Newest first</span></li>
       <li><span class="dropdown-item" data-value="date_asc">Oldest first</span></li>
     </ul>
+  </div>
+
+  <!-- View Toggle -->
+  <div class="view-toggle btn-group" role="group">
+    <button class="btn" id="btnViewGrid" title="Grid View"><i class="bi bi-grid-fill"></i></button>
+    <button class="btn" id="btnViewList" title="List View"><i class="bi bi-list-ul"></i></button>
   </div>
 
   <!-- Filter button -->
@@ -197,6 +224,14 @@
 <!-- ── Main grid ───────────────────────────────────────────────────────── -->
 <div id="main">
   <div id="resultsInfo"></div>
+  <div id="listHeaders" class="list-headers" style="display:none">
+    <div class="list-header-col col-image">Cover</div>
+    <div class="list-header-col col-title">Title</div>
+    <div class="list-header-col col-meta sortable" data-sort="date">Year <i class="bi bi-arrow-down-up"></i></div>
+    <div class="list-header-col col-my-score sortable" data-sort="my_score" style="display:none">My Score <i class="bi bi-arrow-down-up"></i></div>
+    <div class="list-header-col col-score sortable" data-sort="score">Score <i class="bi bi-arrow-down-up"></i></div>
+    <div class="list-header-col col-genres">Genres</div>
+  </div>
   <div id="grid"></div>
   <div id="emptyState" style="display:none">
     <div class="icon">🎌</div>

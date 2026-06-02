@@ -58,7 +58,16 @@ export async function fetchAniListById(anilistId) {
         endDate   { year month day }
         season seasonYear
         studios(isMain: true) { nodes { name } }
+        nextAiringEpisode { episode timeUntilAiring }
         tags { name rank isMediaSpoiler isGeneralSpoiler category }
+        characters(perPage: 3, sort: ROLE) {
+          edges {
+            node { id }
+            voiceActors {
+              languageV2
+            }
+          }
+        }
         description(asHtml: false)
         siteUrl
         externalLinks { site url }
@@ -327,5 +336,66 @@ export async function fetchAniListTags() {
   });
 
   return sorted; // { "Cast – Protagonist": [...], "Setting – Universe": [...], ... }
+}
+
+// ── Schedule: AniList ──────────────────────────────────────────────────────
+export async function fetchAiringSchedule(startTimestamp, endTimestamp) {
+  let hasNextPage = true;
+  let page = 1;
+  const schedules = [];
+
+  const query = `
+    query ($page: Int, $start: Int, $end: Int) {
+      Page(page: $page, perPage: 50) {
+        pageInfo { hasNextPage }
+        airingSchedules(airingAt_greater: $start, airingAt_lesser: $end, sort: TIME) {
+          id
+          episode
+          airingAt
+          timeUntilAiring
+          media {
+            id idMal
+            title { romaji english native }
+            coverImage { large medium }
+            bannerImage
+            format status episodes
+            genres averageScore
+            siteUrl
+            startDate { year }
+            studios(isMain: true) { nodes { name } }
+            tags { name rank isMediaSpoiler isGeneralSpoiler category }
+            description(asHtml: false)
+          }
+        }
+      }
+    }`;
+
+  while (hasNextPage) {
+    const res = await fetch('https://graphql.anilist.co', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ query, variables: { page, start: startTimestamp, end: endTimestamp } }),
+    });
+    
+    if (!res.ok) {
+      if (res.status === 429) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        continue;
+      }
+      throw new Error(`AniList schedule fetch ${res.status}`);
+    }
+    
+    const data = await res.json();
+    const pageData = data?.data?.Page;
+    
+    if (pageData?.airingSchedules) {
+      schedules.push(...pageData.airingSchedules);
+    }
+    
+    hasNextPage = pageData?.pageInfo?.hasNextPage || false;
+    page++;
+  }
+
+  return schedules;
 }
 

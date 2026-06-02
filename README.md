@@ -14,10 +14,12 @@ Built with **Deno** on the backend to elegantly bypass CORS restrictions, and co
 
 - **Cross-Database Browser:** Instantly search, filter, and sort anime utilizing both the AniList GraphQL API and the Jikan (MAL) REST API.
 - **Frictionless Import:** Import your entire MyAnimeList profile seamlessly using just your public username, or upload an exported XML file. No OAuth or passwords required.
-- **Advanced Filtering Engine:** Filter your imported lists or the global database by Genres, highly specific Tags, Year ranges (e.g., 1990-2010), Status, and Format.
+- **Advanced Filtering Engine:** Filter your imported lists or the global database by Genres, Themes, highly specific Tags, Year ranges (e.g., 1990-2010), Status, Minimum Scores, and Format. Erotica and Hentai are automatically excluded for a safe browsing experience.
+- **Dub/Sub Language Detection:** The AniList integration automatically scans voice actor metadata to display beautifully styled language availability badges (prioritizing Japanese and English) directly on your anime cards and detailed modals.
+- **Personalized Schedule Tracker:** View the upcoming airing schedule of your anime, with cards dynamically color-coded to match your personal list status (Watching, Plan to Watch, Dropped, Completed, On-Hold).
 - **Deep Recommendations Engine:** A dedicated smart recommendations tab that cross-references your current list with highly-rated AniList and MAL recommendations, strictly filtering out shows you've already seen.
 - **Interactive Statistics Dashboard:** Beautiful, interactive visual analytics built with Chart.js. Track your watch time, analyze your score distributions, view your top genres via radar charts, and uncover obscure "hot takes".
-- **Responsive & Modern UI:** A sleek, glassmorphic dark-mode design with fluid micro-animations, fully optimized for both desktop and mobile devices.
+- **Responsive & Modern UI:** A sleek, glassmorphic dark-mode design with fluid micro-animations, custom 404 error routing, and fully optimized layouts for both desktop and mobile devices.
 
 ## 🛠️ Technology Stack
 
@@ -86,6 +88,8 @@ The application follows a clean separation of concerns:
     ├── index.html           # Main Browser & Library view
     ├── recs.html            # Smart Recommendations view
     ├── stats.html           # Analytics Dashboard view
+    ├── schedule.html        # Upcoming Release Schedule view
+    ├── 404.html             # Custom Not Found error page
     ├── favicon.svg          # Application icon
     ├── css/
     │   ├── main.css         # Global design system & theme tokens

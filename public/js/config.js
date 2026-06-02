@@ -16,14 +16,22 @@ export const AL_GENRES = [
   'Sports','Supernatural','Thriller',
 ];
 
-// MAL/Jikan genre list (used for MyAnimeList source only)
 export const MAL_GENRES = [
-  'Action','Adventure','Avant Garde','Boys Love','Comedy','Demons','Drama',
-  'Ecchi','Fantasy','Girls Love','Gourmet','Harem','Horror','Isekai','Iyashikei',
-  'Josei','Kids','Magic','Mahou Shoujo','Martial Arts','Mecha','Military',
-  'Music','Mystery','Parody','Psychological','Reincarnation','Reverse Harem','Romance','School',
-  'Sci-Fi','Seinen','Shoujo','Shounen','Slice of Life','Space','Sports',
-  'Super Power','Supernatural','Suspense','Thriller','Vampire',
+  "Action","Adventure","Avant Garde","Award Winning","Boys Love","Comedy","Drama","Fantasy",
+  "Girls Love","Gourmet","Horror","Mystery","Romance","Sci-Fi","Slice of Life","Sports",
+  "Supernatural","Suspense","Ecchi","Josei","Kids","Seinen","Shoujo","Shounen"
+];
+
+export const MAL_THEMES = [
+  "Adult Cast","Anthropomorphic","CGDCT","Childcare","Combat Sports","Crossdressing",
+  "Delinquents","Detective","Educational","Gag Humor","Gore","Harem","High Stakes Game",
+  "Historical","Idols (Female)","Idols (Male)","Isekai","Iyashikei","Love Polygon",
+  "Magical Sex Shift","Mahou Shoujo","Martial Arts","Mecha","Medical","Military",
+  "Music","Mythology","Organized Crime","Otaku Culture","Parody","Performing Arts",
+  "Pets","Psychological","Racing","Reincarnation","Reverse Harem","Love Status Quo",
+  "Samurai","School","Showbiz","Space","Strategy Game","Super Power","Survival",
+  "Team Sports","Time Travel","Vampire","Video Game","Visual Arts","Workplace",
+  "Urban Fantasy","Villainess"
 ];
 
 // Keep a GENRES export as alias so nothing else breaks

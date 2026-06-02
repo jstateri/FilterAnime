@@ -121,9 +121,23 @@ export function renderTabUI(source, hasItems) {
   dom.btnClear().style.display    = hasItems ? 'inline-block' : 'none';
   dom.btnHide().style.display     = (!isMyList && hasItems) ? 'inline-flex' : 'none';
 
-  // Tags dropdown: only visible for AniList and My List sources
+  // Tags dropdown: visible for all sources
   const tagDropdown = document.getElementById('tagToggle')?.closest('.dropdown');
-  if (tagDropdown) tagDropdown.style.display = isMAL ? 'none' : '';
+  if (tagDropdown) tagDropdown.style.display = '';
+
+  const tagToggle = document.getElementById('tagToggle');
+  if (tagToggle) {
+    if (isMAL) {
+      tagToggle.innerHTML = '<i class="bi bi-tags"></i> Themes <span id="tagCount" style="color:var(--accent);font-weight:700;"></span>';
+    } else {
+      tagToggle.innerHTML = '<i class="bi bi-bookmark-fill"></i> Tags <span id="tagCount" style="color:var(--accent);font-weight:700;"></span>';
+    }
+  }
+
+  const pctWrap = document.querySelector('.tag-min-pct-wrap');
+  if (pctWrap) {
+    pctWrap.style.display = isMAL ? 'none' : 'block';
+  }
 }
 
 export function renderHideButton(isHiding) {
@@ -198,7 +212,20 @@ export function renderMyListCards(items, myAnimeList, onCardClick) {
     const totalEp    = a.episodes || '?';
     const genres     = (a.genres ?? []).slice(0, 3);
 
+    let languages = new Set();
+    if (a.characters?.edges) {
+      a.characters.edges.forEach(e => {
+        e.voiceActors?.forEach(va => {
+          if (va.languageV2 === 'Japanese') languages.add('Japanese');
+          if (va.languageV2 === 'English') languages.add('English');
+        });
+      });
+    }
+    const langArr = ['Japanese', 'English'].filter(l => languages.has(l)).join(', ');
+    const langHtml = langArr ? `<span class="genre-tag" style="background:rgba(183,110,255,0.1); border-color:rgba(183,110,255,0.2); color:#b76eff;"><i class="bi bi-mic-fill" style="margin-right:3px;"></i>${langArr}</span>` : '';
+
     const card = _makeCard(i, title, img, globalScore, type);
+    const scoreHtml = globalScore !== '—' ? `<i class="bi bi-star-fill" style="font-size:.8rem;color:#ffd166;margin-right:6px"></i>${globalScore}` : '<span style="color:var(--muted)">—</span>';
     card.querySelector('.card-body').innerHTML = `
       <div class="card-title">${_statusIcon(a.status)}${escHtml(title)}</div>
       <div class="card-meta">
@@ -206,7 +233,9 @@ export function renderMyListCards(items, myAnimeList, onCardClick) {
         <span>${watched} / ${totalEp} ep</span>
         ${year ? `<span>${year}</span>` : ''}
       </div>
-      <div class="card-genres">${genres.map(g => `<span class="genre-tag">${g}</span>`).join('')}</div>`;
+      <div class="card-my-score-list">${local?.my_score ? `<i class="bi bi-star-fill" style="font-size:.8rem;color:var(--accent2);margin-right:6px"></i>${local.my_score}` : '<span style="color:var(--muted)">—</span>'}</div>
+      <div class="card-score-list">${scoreHtml}</div>
+      <div class="card-genres">${langHtml}${genres.map(g => `<span class="genre-tag">${g}</span>`).join('')}</div>`;
 
     card.addEventListener('click', () => onCardClick(a, local));
     grid.appendChild(card);
@@ -227,11 +256,25 @@ export function renderAniListCards(items, onCardClick) {
     const year   = a.startDate?.year ?? '';
     const genres = (a.genres ?? []).slice(0, 3);
 
+    let languages = new Set();
+    if (a.characters?.edges) {
+      a.characters.edges.forEach(e => {
+        e.voiceActors?.forEach(va => {
+          if (va.languageV2 === 'Japanese') languages.add('Japanese');
+          if (va.languageV2 === 'English') languages.add('English');
+        });
+      });
+    }
+    const langArr = ['Japanese', 'English'].filter(l => languages.has(l)).join(', ');
+    const langHtml = langArr ? `<span class="genre-tag" style="background:rgba(183,110,255,0.1); border-color:rgba(183,110,255,0.2); color:#b76eff;"><i class="bi bi-mic-fill" style="margin-right:3px;"></i>${langArr}</span>` : '';
+
     const card = _makeCard(i, title, img, score, type);
+    const scoreHtml = score !== '—' ? `<i class="bi bi-star-fill" style="font-size:.8rem;color:#ffd166;margin-right:6px"></i>${score}` : '<span style="color:var(--muted)">—</span>';
     card.querySelector('.card-body').innerHTML = `
       <div class="card-title">${_statusIcon(a.status)}${escHtml(title)}</div>
-      <div class="card-meta"><span>${year}</span></div>
-      <div class="card-genres">${genres.map(g => `<span class="genre-tag">${g}</span>`).join('')}</div>`;
+      <div class="card-meta"><span>${year || '<span style="color:var(--muted)">—</span>'}</span></div>
+      <div class="card-score-list">${scoreHtml}</div>
+      <div class="card-genres">${langHtml}${genres.map(g => `<span class="genre-tag">${g}</span>`).join('')}</div>`;
 
     card.addEventListener('click', () => onCardClick(a));
     grid.appendChild(card);
@@ -253,9 +296,11 @@ export function renderMALCards(items, onCardClick) {
     const genres = (a.genres ?? []).slice(0, 3).map(g => g.name);
 
     const card = _makeCard(i, title, img, score, type);
+    const scoreHtml = score !== '—' ? `<i class="bi bi-star-fill" style="font-size:.8rem;color:#ffd166;margin-right:6px"></i>${score}` : '<span style="color:var(--muted)">—</span>';
     card.querySelector('.card-body').innerHTML = `
       <div class="card-title">${_statusIcon(a.status)}${escHtml(title)}</div>
-      <div class="card-meta"><span>${year}</span></div>
+      <div class="card-meta"><span>${year || '<span style="color:var(--muted)">—</span>'}</span></div>
+      <div class="card-score-list">${scoreHtml}</div>
       <div class="card-genres">${genres.map(g => `<span class="genre-tag">${g}</span>`).join('')}</div>`;
 
     card.addEventListener('click', () => onCardClick(a));
@@ -307,6 +352,24 @@ export function renderAniListModal(a, localData, modal) {
       .join(', ');
   }
 
+  let languages = new Set();
+  if (a.characters?.edges) {
+    a.characters.edges.forEach(e => {
+      e.voiceActors?.forEach(va => {
+        if (va.languageV2) languages.add(va.languageV2);
+      });
+    });
+  }
+  const langArray = Array.from(languages);
+  langArray.sort((a, b) => {
+    if (a === 'Japanese') return -1;
+    if (b === 'Japanese') return 1;
+    if (a === 'English') return -1;
+    if (b === 'English') return 1;
+    return a.localeCompare(b);
+  });
+  const languagesStr = langArray.join(', ');
+
   dom.modalBody().innerHTML = _detailHTML({
     banner:     a.bannerImage || '',
     cover:      a.coverImage?.large || '',
@@ -319,7 +382,9 @@ export function renderAniListModal(a, localData, modal) {
     genres:     a.genres ?? [],
     tags:       a.tags   ?? [],
     desc,
-    demographic, // <-- Pass demographic to the HTML template
+    demographic,
+    languages:  languagesStr,
+    nextAiring: a.nextAiringEpisode,
     anilistUrl: a.siteUrl || '',
     malUrl:     a.idMal ? `https://myanimelist.net/anime/${a.idMal}` : '',
   });
@@ -358,10 +423,28 @@ export function renderMALModal(a, modal) {
 }
 
 function _detailHTML({ banner, cover, title, native, score, type, status,
-    episodes, year, studios, genres, tags, desc, anilistUrl, malUrl, demographic }) {
+    episodes, year, studios, genres, tags, desc, anilistUrl, malUrl, demographic, languages, nextAiring }) {
   // Store tags on the modal body so injectRecsPlaceholder can render them later
   // We use a data attribute to pass them safely without inline script hacks
   _pendingTags = tags || [];
+
+  let nextAiringHTML = '';
+  if (nextAiring) {
+    const s = nextAiring.timeUntilAiring;
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    let timeStr = [];
+    if (d > 0) timeStr.push(`${d}d`);
+    if (h > 0 || d > 0) timeStr.push(`${h}h`);
+    timeStr.push(`${m}m`);
+    
+    nextAiringHTML = `
+      <div class="mb-3" style="font-size: .85rem;">
+        <span style="color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-right: 6px;">Next Episode:</span>
+        <span style="color: #4ade80; font-weight: 600;">Ep ${nextAiring.episode} airs in ${timeStr.join(' ')}</span>
+      </div>`;
+  }
 
   return `
     ${banner
@@ -394,6 +477,13 @@ function _detailHTML({ banner, cover, title, native, score, type, status,
           <span style="color: var(--accent2); font-weight: 600;">${escHtml(demographic)}</span>
         </div>
       ` : ''}
+      ${languages ? `
+        <div class="mb-3" style="font-size: .85rem;">
+          <span style="color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-right: 6px;">Languages:</span>
+          <span style="color: #b76eff; font-weight: 600;">${escHtml(languages)}</span>
+        </div>
+      ` : ''}
+      ${nextAiringHTML}
         <p class="detail-desc">${escHtml(desc).replace(/\n/g, '<br/>')}</p>
       <div class="d-flex gap-2 flex-wrap mt-3">
         ${anilistUrl ? `<a href="${escHtml(anilistUrl)}" target="_blank" rel="noopener"
@@ -481,6 +571,8 @@ export function renderPills(state, onRemove) {
     add(capitalise(state.type),   () => onRemove('type'));
   if (state.status)
     add(capitalise(state.status), () => onRemove('status'));
+  if (state.minScore > 0)
+    add(`⭐ > ${state.minScore}`, () => onRemove('minScore'));
 
   state.genresIn.forEach(g => add(`+ ${g}`,      () => onRemove('genreIn', g)));
   state.genresEx.forEach(g => add(`- ${g}`,      () => onRemove('genreEx', g)));

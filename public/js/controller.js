@@ -11,7 +11,7 @@ import { fetchAniList, fetchMAL, importMALByUsername,
          normalizeMalApiItem, normalizeXmlItem,
          fetchAniListRecommendations, fetchMALRecommendations,
          fetchAniListById, fetchAniListTags } from './api.js';
-import { STATUS_OPTIONS_GLOBAL, STATUS_OPTIONS_MYLIST, AL_GENRES, MAL_GENRES } from './config.js';
+import { STATUS_OPTIONS_GLOBAL, STATUS_OPTIONS_MYLIST, AL_GENRES, MAL_GENRES, MAL_THEMES } from './config.js';
 import {
   dom, renderGenreMenu, updateYearSlider, renderStatusMenu, renderTabUI,
   renderHideButton, renderSkeletons, renderEmpty, renderError,
@@ -45,13 +45,14 @@ export function init() {
 
   _bindEvents();
   initNotifications();
+  _applyViewMode();
 
   // Fetch AniList tags asynchronously — don't block the initial render
   fetchAniListTags()
     .then(grouped => {
       _allTags = grouped;
       populateTagCategories(grouped);
-      renderTagMenu(grouped, state.tagsIn, state.tagsEx, '', state.tagMinPct);
+      _renderCurrentTagMenu();
     })
     .catch(e => console.warn('Tag fetch failed:', e));
 
@@ -63,8 +64,50 @@ function _genreListForSource(source) {
   return source === 'mal' ? MAL_GENRES : AL_GENRES;
 }
 
+function _applyViewMode() {
+  const btnGrid = document.getElementById('btnViewGrid');
+  const btnList = document.getElementById('btnViewList');
+  const gridEl = dom.grid();
+  const listHeaders = document.getElementById('listHeaders');
+  const isMyList = state.source === 'mylist';
+
+  if (isMyList) {
+    gridEl?.classList.add('mylist-active');
+    listHeaders?.classList.add('mylist-active');
+    listHeaders?.querySelector('.col-my-score')?.style.setProperty('display', 'block');
+  } else {
+    gridEl?.classList.remove('mylist-active');
+    listHeaders?.classList.remove('mylist-active');
+    listHeaders?.querySelector('.col-my-score')?.style.setProperty('display', 'none');
+  }
+
+  if (state.viewMode === 'list') {
+    btnList?.classList.add('active');
+    btnGrid?.classList.remove('active');
+    gridEl?.classList.add('list-view');
+    if (listHeaders) listHeaders.style.display = 'grid';
+  } else {
+    btnGrid?.classList.add('active');
+    btnList?.classList.remove('active');
+    gridEl?.classList.remove('list-view');
+    if (listHeaders) listHeaders.style.display = 'none';
+  }
+}
+
 // ── Event wiring ───────────────────────────────────────────────────────────
 function _bindEvents() {
+
+  // View toggle
+  document.getElementById('btnViewGrid')?.addEventListener('click', () => {
+    state.viewMode = 'grid';
+    localStorage.setItem('viewMode', 'grid');
+    _applyViewMode();
+  });
+  document.getElementById('btnViewList')?.addEventListener('click', () => {
+    state.viewMode = 'list';
+    localStorage.setItem('viewMode', 'list');
+    _applyViewMode();
+  });
 
   // Source tabs
   document.querySelectorAll('.source-tabs .btn').forEach(btn => {
@@ -87,11 +130,13 @@ function _bindEvents() {
         if (display) display.textContent = '0';
         updateTagCount(state.tagsIn, state.tagsEx);
       }
+      _renderCurrentTagMenu();
       dom.genreCount().textContent = '';
       const opts = state.source === 'mylist' ? STATUS_OPTIONS_MYLIST : STATUS_OPTIONS_GLOBAL;
       renderStatusMenu(opts, state.status);
       renderTabUI(state.source, myAnimeList.length > 0);
       renderGenreMenu(state.genresIn, state.genresEx, '', _genreListForSource(state.source));
+      _applyViewMode();
       _fetchAndRender();
     });
   });
@@ -117,6 +162,46 @@ function _bindEvents() {
       document.getElementById('sortToggle').innerHTML =
         `<i class="bi bi-sort-down"></i> ${item.textContent.trim()}`;
       state.page = 1;
+      _fetchAndRender();
+    });
+  });
+
+  // Min Score dropdown
+  document.querySelectorAll('#minScoreMenu .dropdown-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('#minScoreMenu .dropdown-item').forEach(i => i.classList.remove('active-item'));
+      item.classList.add('active-item');
+      state.minScore = parseInt(item.dataset.value) || 0;
+      const label = state.minScore === 0 ? 'Min Score' : `Score > ${state.minScore}`;
+      document.getElementById('minScoreToggle').innerHTML =
+        `<i class="bi bi-star-fill"></i> ${label}`;
+      state.page = 1;
+      _fetchAndRender();
+    });
+  });
+
+  // List Header Sorting
+  document.querySelectorAll('#listHeaders .sortable').forEach(header => {
+    header.addEventListener('click', () => {
+      const sortBase = header.dataset.sort;
+      if (state.sort === `${sortBase}_desc`) {
+        state.sort = `${sortBase}_asc`;
+      } else {
+        state.sort = `${sortBase}_desc`;
+      }
+      
+      document.querySelectorAll('#sortMenu .dropdown-item').forEach(i => i.classList.remove('active-item'));
+      const sortItem = document.querySelector(`#sortMenu .dropdown-item[data-value="${state.sort}"]`);
+      if (sortItem) {
+        sortItem.classList.add('active-item');
+        document.getElementById('sortToggle').innerHTML =
+          `<i class="bi bi-sort-down"></i> ${sortItem.textContent.trim()}`;
+      } else {
+        document.getElementById('sortToggle').innerHTML = `<i class="bi bi-sort-down"></i> Sort`;
+      }
+      
+      state.page = 1;
+      _fetchAndRender();
     });
   });
 
@@ -160,14 +245,12 @@ function _bindEvents() {
       state.tagsIn.push(t);
     }
     updateTagCount(state.tagsIn, state.tagsEx);
-    renderTagMenu(_allTags, state.tagsIn, state.tagsEx,
-      dom.tagSearch()?.value || '', state.tagMinPct);
+    _renderCurrentTagMenu();
   });
 
   // Tag search input
   dom.tagSearch()?.addEventListener('input', e => {
-    renderTagMenu(_allTags, state.tagsIn, state.tagsEx,
-      e.target.value, state.tagMinPct);
+    _renderCurrentTagMenu();
   });
 
   // Minimum tag % slider
@@ -178,8 +261,7 @@ function _bindEvents() {
     if (display) display.textContent = val;
     // Update the track fill via CSS custom property
     e.target.style.setProperty('--pct', val + '%');
-    renderTagMenu(_allTags, state.tagsIn, state.tagsEx,
-      dom.tagSearch()?.value || '', val);
+    _renderCurrentTagMenu();
   });
 
   // Reset slider
@@ -190,8 +272,7 @@ function _bindEvents() {
     const display = dom.tagMinPctValue();
     if (slider)  { slider.value = 0; slider.style.setProperty('--pct', '0%'); }
     if (display) display.textContent = '0';
-    renderTagMenu(_allTags, state.tagsIn, state.tagsEx,
-      dom.tagSearch()?.value || '', 0);
+    _renderCurrentTagMenu();
   });
 
   // Year slider logic
@@ -358,6 +439,7 @@ async function _fetchAndRender() {
     tag_min_pct:    state.tagMinPct || '',
     years:          state.yearActive ? `${state.yearMin},${state.yearMax}` : '',
     sort:           state.sort,
+    min_score:      state.minScore || '',
     page:           state.page,
     limit:          state.perPage,
   };
@@ -396,10 +478,35 @@ async function _fetchMyList(params) {
 
   let target = myAnimeList;
   if (state.status) target = target.filter(a => a.my_status === state.status);
+
   if (!target.length) { renderEmpty(); return { items: [], total: 0, lastPage: 1 }; }
 
-  const ids = target.map(a => a.id).join(',');
-  return await fetchAniList(params, ids, null);
+  const isMyScoreSort = params.sort === 'my_score_desc' || params.sort === 'my_score_asc';
+
+  if (isMyScoreSort) {
+    if (params.sort === 'my_score_desc') {
+      target.sort((a, b) => (parseFloat(b.my_score) || 0) - (parseFloat(a.my_score) || 0));
+    } else {
+      target.sort((a, b) => (parseFloat(a.my_score) || 0) - (parseFloat(b.my_score) || 0));
+    }
+    
+    const page = parseInt(params.page) || 1;
+    const limit = parseInt(params.limit) || 50;
+    const sliced = target.slice((page - 1) * limit, page * limit);
+    const ids = sliced.map(a => a.id).join(',');
+    
+    const result = await fetchAniList({ page: 1, limit }, ids, null);
+    
+    const idOrder = sliced.map(a => parseInt(a.id));
+    result.items.sort((a, b) => idOrder.indexOf(a.idMal) - idOrder.indexOf(b.idMal));
+    
+    result.total = target.length;
+    result.lastPage = Math.ceil(target.length / limit);
+    return result;
+  } else {
+    const ids = target.map(a => a.id).join(',');
+    return await fetchAniList(params, ids, null);
+  }
 }
 
 async function _fetchAniListSource(params) {
@@ -463,6 +570,13 @@ function _onPillRemove(type, value) {
       const opts = state.source === 'mylist' ? STATUS_OPTIONS_MYLIST : STATUS_OPTIONS_GLOBAL;
       renderStatusMenu(opts, '');
       break;
+    case 'minScore':
+      state.minScore = 0;
+      document.querySelectorAll('#minScoreMenu .dropdown-item').forEach(i => i.classList.remove('active-item'));
+      const anyScoreItem = document.querySelector('#minScoreMenu .dropdown-item[data-value="0"]');
+      if (anyScoreItem) anyScoreItem.classList.add('active-item');
+      document.getElementById('minScoreToggle').innerHTML = `<i class="bi bi-star-fill"></i> Min Score`;
+      break;
     case 'genreIn':
       state.genresIn = state.genresIn.filter(x => x !== value);
       dom.genreCount().textContent =
@@ -484,14 +598,12 @@ function _onPillRemove(type, value) {
     case 'tagIn':
       state.tagsIn = state.tagsIn.filter(x => x !== value);
       updateTagCount(state.tagsIn, state.tagsEx);
-      renderTagMenu(_allTags, state.tagsIn, state.tagsEx,
-        dom.tagSearch()?.value || '', state.tagMinPct);
+      _renderCurrentTagMenu();
       break;
     case 'tagEx':
       state.tagsEx = state.tagsEx.filter(x => x !== value);
       updateTagCount(state.tagsIn, state.tagsEx);
-      renderTagMenu(_allTags, state.tagsIn, state.tagsEx,
-        dom.tagSearch()?.value || '', state.tagMinPct);
+      _renderCurrentTagMenu();
       break;
   }
   state.page = 1;
@@ -564,3 +676,13 @@ async function _loadRecommendations({ source, anilistId, malId, item }) {
   }
 }
 
+// ── _renderCurrentTagMenu ──────────────────────────────────────────────────
+function _renderCurrentTagMenu() {
+  const searchVal = dom.tagSearch()?.value || '';
+  if (state.source === 'mal') {
+    const grouped = { 'MAL Themes': MAL_THEMES.map(name => ({name, rank: 0, isGeneralSpoiler: false})) };
+    renderTagMenu(grouped, state.tagsIn, state.tagsEx, searchVal, 0);
+  } else {
+    renderTagMenu(_allTags, state.tagsIn, state.tagsEx, searchVal, state.tagMinPct);
+  }
+}
