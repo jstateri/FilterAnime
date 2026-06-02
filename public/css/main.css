@@ -983,6 +983,27 @@ body::before {
   font-weight: 600;
 }
 
+.year-input {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  width: 50px;
+  text-align: center;
+  outline: none;
+  border-bottom: 1px dashed var(--accent-glo);
+  transition: border-color 0.2s;
+  -moz-appearance: textfield;
+}
+.year-input:focus {
+  border-bottom-color: var(--accent);
+}
+.year-input::-webkit-outer-spin-button,
+.year-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 @media (max-width: 1200px) {
   .schedule-grid { grid-template-columns: repeat(4, 1fr); }
 }

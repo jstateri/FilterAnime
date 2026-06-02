@@ -143,9 +143,9 @@
       <i class="bi bi-calendar3"></i> Year
       <span id="yearCount" style="color:var(--accent);font-weight:700;"></span>
     </button>
-    <div class="dropdown-menu" id="yearMenu" style="min-width:240px; padding:12px 20px 12px;">
+    <div class="dropdown-menu dropdown-menu-end" id="yearMenu" style="min-width:240px; padding:12px 20px 12px;">
       <div style="text-align:center; font-size:1.1rem; font-family:var(--font-head); letter-spacing:.05em; color:var(--accent); margin-bottom:8px;">
-        <span id="yearDisplayMin">1970</span> <span style="color:var(--muted); font-size:0.9rem; font-family:var(--font-body); padding:0 4px;">—</span> <span id="yearDisplayMax">2027</span>
+        <input type="number" class="year-input" id="yearDisplayMin" value="1970"> <span style="color:var(--muted); font-size:0.9rem; font-family:var(--font-body); padding:0 4px;">—</span> <input type="number" class="year-input" id="yearDisplayMax" value="2027">
       </div>
       <div class="multi-range">
         <input type="range" id="yearMinSlider" min="1970" max="2027" value="1970">
@@ -162,7 +162,7 @@
     <button class="btn dropdown-toggle" id="statusToggle" data-bs-toggle="dropdown">
       <i class="bi bi-broadcast"></i> Status
     </button>
-    <ul class="dropdown-menu" id="statusMenu">
+    <ul class="dropdown-menu dropdown-menu-end" id="statusMenu">
       <!-- Items injected by view.js -->
     </ul>
   </div>
@@ -172,7 +172,7 @@
     <button class="btn dropdown-toggle" id="minScoreToggle" data-bs-toggle="dropdown">
       <i class="bi bi-star-fill"></i> Min Score
     </button>
-    <ul class="dropdown-menu" id="minScoreMenu">
+    <ul class="dropdown-menu dropdown-menu-end" id="minScoreMenu">
       <li><span class="dropdown-item active-item" data-value="0">Any Score</span></li>
       <li><span class="dropdown-item" data-value="4">Score > 4</span></li>
       <li><span class="dropdown-item" data-value="5">Score > 5</span></li>
@@ -188,7 +188,7 @@
     <button class="btn dropdown-toggle" id="sortToggle" data-bs-toggle="dropdown">
       <i class="bi bi-sort-down"></i> Sort
     </button>
-    <ul class="dropdown-menu" id="sortMenu">
+    <ul class="dropdown-menu dropdown-menu-end" id="sortMenu">
       <li><span class="dropdown-item active-item" data-value="score_desc">Score ↓</span></li>
       <li><span class="dropdown-item" data-value="score_asc">Score ↑</span></li>
       <li><span class="dropdown-item" data-value="popularity_desc">Popularity ↓</span></li>

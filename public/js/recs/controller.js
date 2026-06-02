@@ -109,8 +109,32 @@ function _initFilters() {
     yearActive = (minYear > 1970 || maxYear < 2027);
 
     updateYearSlider(minYear, maxYear, 1970, 2027, yearActive);
+    bootstrap.Dropdown.getInstance(document.getElementById('yearToggle'))?.update();
     _applyFilters();
   };
+
+  const handleYearDisplayInput = (e) => {
+    let val = parseInt(e.target.value);
+    if (isNaN(val)) return;
+    if (val < 1970) val = 1970;
+    if (val > 2027) val = 2027;
+
+    const minSlider = dom.yearMinSlider();
+    const maxSlider = dom.yearMaxSlider();
+    if (e.target.id === 'yearDisplayMin') {
+      if (maxSlider && val > parseInt(maxSlider.value)) val = parseInt(maxSlider.value);
+      if (minSlider) minSlider.value = val;
+    } else {
+      if (minSlider && val < parseInt(minSlider.value)) val = parseInt(minSlider.value);
+      if (maxSlider) maxSlider.value = val;
+    }
+    
+    e.target.value = val;
+    updateYear();
+  };
+
+  dom.yearDisplayMin()?.addEventListener('change', handleYearDisplayInput);
+  dom.yearDisplayMax()?.addEventListener('change', handleYearDisplayInput);
 
   dom.yearMinSlider()?.addEventListener('input', updateYear);
   dom.yearMaxSlider()?.addEventListener('input', updateYear);

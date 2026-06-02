@@ -78,8 +78,14 @@ export function updateYearSlider(min, max, totalMin, totalMax, isActive) {
 
   if (minSlider) minSlider.value = min;
   if (maxSlider) maxSlider.value = max;
-  if (dispMin) dispMin.textContent = min;
-  if (dispMax) dispMax.textContent = max;
+  if (dispMin) {
+    if (dispMin.tagName === 'INPUT') dispMin.value = min;
+    else dispMin.textContent = min;
+  }
+  if (dispMax) {
+    if (dispMax.tagName === 'INPUT') dispMax.value = max;
+    else dispMax.textContent = max;
+  }
 
   if (fill && totalMax > totalMin) {
     const minPercent = ((min - totalMin) / (totalMax - totalMin)) * 100;

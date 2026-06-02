@@ -1,5 +1,5 @@
-import { fetchAiringSchedule } from './api.js';
-import { renderAniListModal } from './view.js';
+import { fetchAiringSchedule, fetchAniListById, fetchAniListRecommendations } from './api.js';
+import { renderAniListModal, injectRecsPlaceholder, renderRelations, renderRecommendations } from './view.js';
 
 let scheduleData = [];
 let myAnimeListStatuses = new Map();
@@ -71,7 +71,7 @@ function applyFiltersAndRender() {
   }
 
   scheduleData.forEach(item => {
-    if (!item.media || item.media.format === 'MANGA' || item.media.format === 'NOVEL') return;
+    if (!item.media || item.media.format === 'MANGA' || item.media.format === 'NOVEL' || item.media.isAdult) return;
     
     const status = myAnimeListStatuses.get(String(item.media.idMal));
     const isTracked = !!status;
@@ -131,7 +131,16 @@ function createScheduleCard(item, status) {
   const cover = media.coverImage?.medium || '';
   
   const timeStr = formatTime(item.airingAt);
-  const countdown = formatCountdown(item.timeUntilAiring);
+  const realTimeUntil = item.airingAt - Math.floor(Date.now() / 1000);
+  
+  let countdownHtml = '';
+  if (realTimeUntil > 0) {
+    const countdown = formatCountdown(realTimeUntil);
+    countdownHtml = `
+        <span class="schedule-countdown ${realTimeUntil < 86400 ? 'soon' : ''}">
+          <i class="bi bi-clock"></i> ${countdown}
+        </span>`;
+  }
   
   const isTracked = !!status;
   const statusClass = status ? `status-${status.toLowerCase().replace(/ /g, '-')}` : '';
@@ -145,26 +154,12 @@ function createScheduleCard(item, status) {
       <div class="schedule-time">${timeStr}</div>
       <div class="schedule-title" title="${title}">${title}</div>
       <div class="schedule-meta">
-        <span class="schedule-ep">Ep ${item.episode}</span>
-        <span class="schedule-countdown ${item.timeUntilAiring < 86400 ? 'soon' : ''}">
-          <i class="bi bi-clock"></i> ${countdown}
-        </span>
+        <span class="schedule-ep">Ep ${item.episode}</span>${countdownHtml}
       </div>
     </div>
   `;
   
   card.addEventListener('click', () => {
-    // Next airing episode might not be accurate if we pass just this item, 
-    // but AniList modal uses the 'nextAiringEpisode' object if provided.
-    // For schedule, the episode we clicked IS the next airing episode.
-    const modalData = {
-      ...media,
-      nextAiringEpisode: {
-        episode: item.episode,
-        timeUntilAiring: item.timeUntilAiring
-      }
-    };
-    
     let localData = null;
     if (isTracked) {
       try {
@@ -175,11 +170,49 @@ function createScheduleCard(item, status) {
         }
       } catch(e){}
     }
+
+    const nextAiringOverride = realTimeUntil > 0 ? {
+      episode: item.episode,
+      timeUntilAiring: realTimeUntil
+    } : null;
     
-    renderAniListModal(modalData, localData, detailModal);
+    _onModalCardClick(media, localData, nextAiringOverride);
   });
   
   return card;
+}
+
+async function _onModalCardClick(anime, localData = null, nextAiringOverride = undefined) {
+  const modalData = { ...anime };
+  if (nextAiringOverride !== undefined) {
+    modalData.nextAiringEpisode = nextAiringOverride;
+  }
+  
+  renderAniListModal(modalData, localData, detailModal);
+
+  if (!anime.id) return;
+
+  try {
+    injectRecsPlaceholder();
+
+    const [fullAl, { recommendations, relations }] = await Promise.all([
+      fetchAniListById(anime.id),
+      fetchAniListRecommendations(anime.id)
+    ]);
+
+    if (nextAiringOverride !== undefined) {
+      fullAl.nextAiringEpisode = nextAiringOverride;
+    }
+
+    if (document.getElementById('detailModal')?.classList.contains('show')) {
+      renderAniListModal(fullAl, localData, detailModal);
+      injectRecsPlaceholder(); 
+      renderRelations(relations, a => _onModalCardClick(a, null));
+      renderRecommendations(recommendations, a => _onModalCardClick(a, null));
+    }
+  } catch (e) {
+    console.warn("Failed to fetch extended modal data:", e);
+  }
 }
 
 function formatTime(timestamp) {

@@ -355,6 +355,7 @@ export async function fetchAiringSchedule(startTimestamp, endTimestamp) {
           timeUntilAiring
           media {
             id idMal
+            isAdult
             title { romaji english native }
             coverImage { large medium }
             bannerImage
@@ -364,6 +365,12 @@ export async function fetchAiringSchedule(startTimestamp, endTimestamp) {
             startDate { year }
             studios(isMain: true) { nodes { name } }
             tags { name rank isMediaSpoiler isGeneralSpoiler category }
+            characters(perPage: 3, sort: ROLE) {
+              edges {
+                node { id }
+                voiceActors { languageV2 }
+              }
+            }
             description(asHtml: false)
           }
         }

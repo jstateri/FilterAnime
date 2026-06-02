@@ -9,8 +9,8 @@
  * 
  * Execution: `deno run --allow-net --allow-read --watch server.ts`
  */
-//const PORT = parseInt(Deno.env.get("PORT") || "8000"); //deployement
-const PORT = 8000; //local
+// Use dynamic port for deployment (Deno Deploy, Railway, etc.), fallback to 8000 locally
+const PORT = parseInt(Deno.env.get("PORT") || "8000");
 
 // Resolve the project root relative to this script file so the server works
 // regardless of which directory `deno run` is executed from.
