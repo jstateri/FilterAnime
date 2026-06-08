@@ -59,7 +59,7 @@ export async function fetchAniListById(anilistId) {
         season seasonYear
         studios(isMain: true) { nodes { name } }
         nextAiringEpisode { episode timeUntilAiring }
-        tags { name rank isMediaSpoiler isGeneralSpoiler category }
+        tags { name rank isMediaSpoiler isGeneralSpoiler category description }
         characters(perPage: 3, sort: ROLE) {
           edges {
             node { id }
@@ -210,7 +210,7 @@ export async function fetchAniListRecommendations(anilistId) {
               genres
               description(asHtml: false)
               studios(isMain: true) { nodes { name } }
-              tags { name rank isMediaSpoiler isGeneralSpoiler category }
+              tags { name rank isMediaSpoiler isGeneralSpoiler category description }
             }
           }
         }
@@ -231,7 +231,7 @@ export async function fetchAniListRecommendations(anilistId) {
               siteUrl
               description(asHtml: false)
               studios(isMain: true) { nodes { name } }
-              tags { name rank isMediaSpoiler isGeneralSpoiler category }
+              tags { name rank isMediaSpoiler isGeneralSpoiler category description }
             }
           }
         }

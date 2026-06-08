@@ -27,10 +27,40 @@ import { initNotifications, refreshNotifications } from './notifications/control
 
 let detailModal;
 let _allTags = {}; // cached { category: [tags] } from /api/tags
+let modalHistory = [];
+let currentModalState = null;
+
+function updateModalBackButton() {
+  const btn = document.getElementById('modalBackBtn');
+  if (!btn) return;
+  if (modalHistory.length > 0) {
+    btn.style.display = 'inline-flex';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function openModalState(s) {
+  currentModalState = s;
+  updateModalBackButton();
+  if (s.type === 'anilist') {
+    renderAniListModal(s.a, s.local, detailModal);
+    _loadRecommendations({ ...s.recsInfo, skipFetch: true });
+  } else {
+    renderMALModal(s.a, detailModal);
+    if (s.recsInfo) _loadRecommendations({ ...s.recsInfo, skipFetch: true });
+  }
+}
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────
 export function init() {
   detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
+  document.getElementById('modalBackBtn')?.addEventListener('click', () => {
+    if (modalHistory.length > 0) {
+      const prevState = modalHistory.pop();
+      openModalState(prevState);
+    }
+  });
 
   // Pre-fill saved username
   const savedUser = getSavedUsername();
@@ -44,7 +74,25 @@ export function init() {
   renderTabUI(state.source, myAnimeList.length > 0);
 
   _bindEvents();
-  initNotifications();
+  initNotifications((notif) => {
+    const local = myAnimeList.find(a => parseInt(a.id) === notif.mediaIdMal) || null;
+    modalHistory = [];
+    const a = {
+      id: notif.alId,
+      idMal: notif.mediaIdMal,
+      title: { userPreferred: notif.title },
+      coverImage: { large: notif.cover }
+    };
+    const recsInfo = { source: 'anilist', anilistId: notif.alId, malId: notif.mediaIdMal, item: notif };
+    currentModalState = { type: 'anilist', a, local, recsInfo };
+    updateModalBackButton();
+    
+    // Open modal immediately with partial data
+    renderAniListModal(a, local, detailModal);
+    
+    // Trigger full fetch and recommendations loading
+    _loadRecommendations(recsInfo);
+  });
   _applyViewMode();
 
   // Fetch AniList tags asynchronously — don't block the initial render
@@ -112,14 +160,22 @@ function _bindEvents() {
   // Source tabs
   document.querySelectorAll('.source-tabs .btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      const prevSource = state.source;
+      const newSource = btn.dataset.source;
+      if (prevSource === newSource) return;
+
       document.querySelectorAll('.source-tabs .btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      state.source  = btn.dataset.source;
+      state.source  = newSource;
       state.page    = 1;
       state.status  = '';
+      
       // Clear genre/tag selections that don't apply to the new source
-      state.genresIn  = [];
-      state.genresEx  = [];
+      if ((prevSource === 'mal') !== (newSource === 'mal')) {
+        state.genresIn  = [];
+        state.genresEx  = [];
+      }
+
       if (state.source === 'mal') {
         state.tagsIn    = [];
         state.tagsEx    = [];
@@ -131,7 +187,10 @@ function _bindEvents() {
         updateTagCount(state.tagsIn, state.tagsEx);
       }
       _renderCurrentTagMenu();
-      dom.genreCount().textContent = '';
+      
+      const totalGenres = state.genresIn.length + state.genresEx.length;
+      dom.genreCount().textContent = totalGenres ? `(${totalGenres})` : '';
+      
       const opts = state.source === 'mylist' ? STATUS_OPTIONS_MYLIST : STATUS_OPTIONS_GLOBAL;
       renderStatusMenu(opts, state.status);
       renderTabUI(state.source, myAnimeList.length > 0);
@@ -393,6 +452,21 @@ function _bindEvents() {
   document.getElementById('btnStats')?.addEventListener('click', () => {
     window.location.href = '/stats.html';
   });
+
+  // Tab synchronization listeners
+  window.addEventListener('myAnimeListUpdated', () => {
+    refreshNotifications();
+    renderTabUI(state.source, true);
+    if (state.source === 'mylist') {
+      state.page = 1;
+      _fetchAndRender();
+    }
+  });
+
+  window.addEventListener('malUsernameUpdated', () => {
+    const u = getSavedUsername();
+    if (u) document.getElementById('malUsername').value = u;
+  });
 }
 
 // ── Import: username ───────────────────────────────────────────────────────
@@ -480,8 +554,11 @@ async function _fetchAndRender() {
       result = await _fetchMALSource(params);
     }
 
-    // Only update totals on first page to avoid flickering
-    if (state.page === 1) {
+    // Progressively refine the total count when we reach the last page
+    if (result.items.length < state.perPage) {
+      state.total = (state.page - 1) * state.perPage + result.items.length;
+      state.lastPage = state.page;
+    } else if (state.page === 1) {
       state.total    = result.total;
       state.lastPage = result.lastPage;
     }
@@ -530,7 +607,15 @@ async function _fetchMyList(params) {
     return result;
   } else {
     const ids = target.map(a => a.id).join(',');
-    return await fetchAniList(params, ids, null);
+    const result = await fetchAniList(params, ids, null);
+    
+    // AniList API often returns 5000 for complex idMal_in queries.
+    // Cap the estimated total to the maximum possible matches in the user's list.
+    if (result.total > target.length) {
+      result.total = target.length;
+      result.lastPage = Math.ceil(target.length / (parseInt(params.limit) || 24));
+    }
+    return result;
   }
 }
 
@@ -559,21 +644,33 @@ async function _fetchMALSource(params) {
 function _renderCards(items) {
   if (state.source === 'mylist') {
     renderMyListCards(items, myAnimeList, (a, local) => {
+      modalHistory = [];
+      const recsInfo = { source: 'anilist', anilistId: a.id, malId: a.idMal, item: a };
+      currentModalState = { type: 'anilist', a, local, recsInfo };
+      updateModalBackButton();
       // Show partial data immediately so modal opens without delay
       renderAniListModal(a, local, detailModal);
       // _loadRecommendations will re-render with full data + inject sections
-      _loadRecommendations({ source: 'anilist', anilistId: a.id, malId: a.idMal, item: a });
+      _loadRecommendations(recsInfo);
     });
   } else if (state.source === 'anilist') {
     renderAniListCards(items, a => {
+      modalHistory = [];
+      const recsInfo = { source: 'anilist', anilistId: a.id, malId: a.idMal, item: a };
+      currentModalState = { type: 'anilist', a, local: null, recsInfo };
+      updateModalBackButton();
       renderAniListModal(a, null, detailModal);
-      _loadRecommendations({ source: 'anilist', anilistId: a.id, malId: a.idMal, item: a });
+      _loadRecommendations(recsInfo);
     });
   } else {
     // MAL source — render immediately, no full-fetch needed
     renderMALCards(items, a => {
+      modalHistory = [];
+      const recsInfo = { source: 'mal', malId: a.mal_id, item: a };
+      currentModalState = { type: 'mal', a, local: null, recsInfo };
+      updateModalBackButton();
       renderMALModal(a, detailModal);
-      _loadRecommendations({ source: 'mal', malId: a.mal_id, item: a });
+      _loadRecommendations(recsInfo);
     });
   }
 }
@@ -638,15 +735,20 @@ function _onPillRemove(type, value) {
 // ── Recommendations loader ─────────────────────────────────────────────────
 // Called after any modal opens. Injects skeleton → fetches → renders cards.
 // Clicking a rec card opens its own modal (with nested recommendations).
-async function _loadRecommendations({ source, anilistId, malId, item }) {
+async function _loadRecommendations({ source, anilistId, malId, item, skipFetch }) {
   // Step 1: fetch full AniList data so we render the modal exactly once.
   // This prevents the double-render race where a background fetchAniListById
   // would wipe the already-injected #recsSection.
-  if (source === 'anilist' && anilistId) {
+  if (source === 'anilist' && anilistId && !skipFetch) {
     try {
       const full = await fetchAniListById(anilistId);
       if (document.getElementById('detailModal')?.classList.contains('show')) {
-        renderAniListModal(full, null, detailModal);
+        let localData = null;
+        if (currentModalState && currentModalState.recsInfo.anilistId === anilistId) {
+          currentModalState.a = full;
+          localData = currentModalState.local;
+        }
+        renderAniListModal(full, localData, detailModal);
       }
     } catch (e) {
       console.warn('Full media fetch failed, falling back to partial:', e);
@@ -657,12 +759,17 @@ async function _loadRecommendations({ source, anilistId, malId, item }) {
   injectRecsPlaceholder();
 
   const onAnimeClick = async (entry) => {
+    if (currentModalState) {
+      modalHistory.push(currentModalState);
+    }
+    updateModalBackButton();
+
     if (entry.id) {
       // Recursively open another entry — _loadRecommendations handles
       // the full-fetch + single-render cycle for the new entry too
-      await _loadRecommendations({
-        source: 'anilist', anilistId: entry.id, malId: entry.idMal, item: entry,
-      });
+      const recsInfo = { source: 'anilist', anilistId: entry.id, malId: entry.idMal, item: entry };
+      currentModalState = { type: 'anilist', a: entry, local: null, recsInfo };
+      await _loadRecommendations(recsInfo);
     } else {
       // MAL stub from Jikan recs — no AniList ID available
       const stub = {
@@ -671,9 +778,11 @@ async function _loadRecommendations({ source, anilistId, malId, item }) {
         url:    entry.url,
         mal_id: entry.id,
       };
+      const recsInfo = entry.id ? { source: 'mal', malId: entry.id, item: stub } : null;
+      currentModalState = { type: 'mal', a: stub, local: null, recsInfo };
       renderMALModal(stub, detailModal);
       if (entry.id) {
-        await _loadRecommendations({ source: 'mal', malId: entry.id, item: stub });
+        await _loadRecommendations(recsInfo);
       }
     }
   };

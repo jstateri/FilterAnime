@@ -66,7 +66,10 @@
 <div class="modal fade" id="detailModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header border-0 pb-0">
+      <div class="modal-header border-0 pb-0" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+        <button id="modalBackBtn" class="btn btn-sm btn-outline-secondary" style="display:none; align-items:center; gap:5px; padding: 4px 10px; border-color: var(--border); color: var(--text);">
+          <i class="bi bi-arrow-left"></i> Back
+        </button>
         <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" id="modalBody"></div>

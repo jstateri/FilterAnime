@@ -4,12 +4,33 @@ import { renderAniListModal, injectRecsPlaceholder, renderRelations, renderRecom
 let scheduleData = [];
 let myAnimeListStatuses = new Map();
 let detailModal = null;
+let modalHistory = [];
+let currentModalState = null;
+
+function updateModalBackButton() {
+  const btn = document.getElementById('modalBackBtn');
+  if (!btn) return;
+  if (modalHistory.length > 0) {
+    btn.style.display = 'inline-flex';
+  } else {
+    btn.style.display = 'none';
+  }
+}
 
 // Ensure bootstrap is available globally since it's loaded as a script in HTML
 const bootstrap = window.bootstrap;
 
 export async function initSchedule() {
   detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
+  document.getElementById('modalBackBtn')?.addEventListener('click', () => {
+    if (modalHistory.length > 0) {
+      const prevState = modalHistory.pop();
+      currentModalState = prevState;
+      updateModalBackButton();
+      renderAniListModal(prevState.a, prevState.local, detailModal);
+      if (prevState.a.id) _fetchExtendedData(prevState.a.id, prevState.local, prevState.nextAiringOverride);
+    }
+  });
   
   // Load user's MAL list to cross-reference
   try {
@@ -176,28 +197,40 @@ function createScheduleCard(item, status) {
       timeUntilAiring: realTimeUntil
     } : null;
     
-    _onModalCardClick(media, localData, nextAiringOverride);
+    modalHistory = [];
+    updateModalBackButton();
+    _onModalCardClick(media, localData, nextAiringOverride, true);
   });
   
   return card;
 }
 
-async function _onModalCardClick(anime, localData = null, nextAiringOverride = undefined) {
+async function _onModalCardClick(anime, localData = null, nextAiringOverride = undefined, fromGrid = false) {
+  if (!fromGrid && currentModalState) {
+    modalHistory.push(currentModalState);
+  }
+
   const modalData = { ...anime };
   if (nextAiringOverride !== undefined) {
     modalData.nextAiringEpisode = nextAiringOverride;
   }
   
+  currentModalState = { a: modalData, local: localData, nextAiringOverride };
+  updateModalBackButton();
+
   renderAniListModal(modalData, localData, detailModal);
 
   if (!anime.id) return;
+  _fetchExtendedData(anime.id, localData, nextAiringOverride);
+}
 
+async function _fetchExtendedData(id, localData, nextAiringOverride) {
   try {
     injectRecsPlaceholder();
 
     const [fullAl, { recommendations, relations }] = await Promise.all([
-      fetchAniListById(anime.id),
-      fetchAniListRecommendations(anime.id)
+      fetchAniListById(id),
+      fetchAniListRecommendations(id)
     ]);
 
     if (nextAiringOverride !== undefined) {
@@ -205,10 +238,13 @@ async function _onModalCardClick(anime, localData = null, nextAiringOverride = u
     }
 
     if (document.getElementById('detailModal')?.classList.contains('show')) {
+      if (currentModalState && currentModalState.a.id === id) {
+        currentModalState.a = fullAl;
+      }
       renderAniListModal(fullAl, localData, detailModal);
       injectRecsPlaceholder(); 
-      renderRelations(relations, a => _onModalCardClick(a, null));
-      renderRecommendations(recommendations, a => _onModalCardClick(a, null));
+      renderRelations(relations, a => _onModalCardClick(a, null, undefined, false));
+      renderRecommendations(recommendations, a => _onModalCardClick(a, null, undefined, false));
     }
   } catch (e) {
     console.warn("Failed to fetch extended modal data:", e);

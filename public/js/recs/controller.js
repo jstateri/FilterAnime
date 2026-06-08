@@ -16,6 +16,18 @@ import { renderGenreMenu, updateYearSlider } from '../view.js';
 let allRecommendations = [];
 let excludeMyList = true;
 let detailModal;
+let modalHistory = [];
+let currentModalState = null;
+
+function updateModalBackButton() {
+  const btn = document.getElementById('modalBackBtn');
+  if (!btn) return;
+  if (modalHistory.length > 0) {
+    btn.style.display = 'inline-flex';
+  } else {
+    btn.style.display = 'none';
+  }
+}
 
 // Filter state
 let activeGenresIn = [];
@@ -31,6 +43,15 @@ export async function init() {
   if (usernameBadge && user) usernameBadge.textContent = `@${user}`;
 
   detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
+  document.getElementById('modalBackBtn')?.addEventListener('click', () => {
+    if (modalHistory.length > 0) {
+      const prevState = modalHistory.pop();
+      currentModalState = prevState;
+      updateModalBackButton();
+      renderAniListModal(prevState.a, prevState.local, detailModal);
+      if (prevState.a.id) _fetchExtendedData(prevState.a.id, prevState.local);
+    }
+  });
 
   bindExcludeToggle((checked) => {
     excludeMyList = checked;
@@ -195,36 +216,53 @@ function _applyFilters() {
     });
   }
 
-  renderRecCards(filtered, _onCardClick);
+  renderRecCards(filtered, (anime) => {
+    modalHistory = [];
+    currentModalState = { a: anime };
+    updateModalBackButton();
+    _onCardClick(anime, true);
+  });
 }
 
-async function _onCardClick(anime) {
-  // 1. Render initial modal data
+async function _onCardClick(anime, fromGrid = false) {
+  if (!fromGrid && currentModalState) {
+    modalHistory.push(currentModalState);
+  }
+  
+  const localMatch = myAnimeList.find(a => parseInt(a.id) === anime.idMal);
+  const localData = localMatch ? { watched: localMatch.watched, my_status: localMatch.my_status } : null;
+
   const partialData = {
     ...anime,
     title: { english: anime.title?.english || anime.title?.romaji },
     startDate: anime.startDate,
   };
+  currentModalState = { a: partialData, local: localData };
+  updateModalBackButton();
 
-  renderAniListModal(partialData, null, detailModal);
+  renderAniListModal(partialData, localData, detailModal);
 
   if (!anime.id) return;
+  _fetchExtendedData(anime.id, localData);
+}
 
-  // 2. Fetch extended data silently
+async function _fetchExtendedData(id, localData) {
   try {
     injectRecsPlaceholder();
 
     const [fullAl, { recommendations, relations }] = await Promise.all([
-      fetchAniListById(anime.id),
-      fetchAniListRecommendations(anime.id)
+      fetchAniListById(id),
+      fetchAniListRecommendations(id)
     ]);
 
-    // Update modal body natively if it is still open
     if (document.getElementById('detailModal')?.classList.contains('show')) {
-      renderAniListModal(fullAl, null, detailModal);
+      if (currentModalState && currentModalState.a.id === id) {
+        currentModalState.a = fullAl;
+      }
+      renderAniListModal(fullAl, localData, detailModal);
       injectRecsPlaceholder(); 
-      renderRelations(relations, _onCardClick);
-      renderRecommendations(recommendations, _onCardClick);
+      renderRelations(relations, a => _onCardClick(a, false));
+      renderRecommendations(recommendations, a => _onCardClick(a, false));
     }
   } catch (e) {
     console.warn("Failed to fetch extended modal data:", e);

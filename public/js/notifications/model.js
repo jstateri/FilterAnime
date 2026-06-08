@@ -24,6 +24,7 @@ export async function fetchWatchingSchedules(watchingIds) {
       query($malIds: [Int]) {
         Page(page: 1, perPage: 50) {
           media(idMal_in: $malIds, status_in: [RELEASING, NOT_YET_RELEASED, FINISHED]) {
+            id
             idMal
             siteUrl
             title { english romaji }

@@ -4,6 +4,7 @@
  * Handles DOM manipulation and rendering for the notifications dropdown.
  * Operates strictly on data provided by the controller.
  */
+import { escHtml } from '../view.js';
 export function renderBell(onToggle) {
   // Inject the bell container into the topbar next to the tabs
   const container = document.createElement('div');
@@ -44,7 +45,7 @@ export function updateBadge(unreadCount) {
   }
 }
 
-export function renderDropdown(notifications, upcoming, readIds, onMarkAsRead, currentTab, onTabSwitch) {
+export function renderDropdown(notifications, upcoming, readIds, onMarkAsRead, currentTab, onTabSwitch, onNotificationClick) {
   const dd = document.getElementById('notifDropdown');
   if (!dd) return;
 
@@ -80,16 +81,16 @@ export function renderDropdown(notifications, upcoming, readIds, onMarkAsRead, c
       const actionText = isNewTab ? "Available!" : "Airing";
       
       html += `
-        <a href="${n.siteUrl}" target="_blank" rel="noopener" class="notif-item ${isUnread ? 'unread' : ''}">
-          <img src="${n.cover}" class="notif-cover" alt="">
+        <div class="notif-item ${isUnread ? 'unread' : ''}" data-id="${n.id}" style="cursor: pointer;">
+          <img src="${escHtml(n.cover)}" class="notif-cover" alt="" loading="lazy">
           <div class="notif-content">
             <div class="notif-title-row">
-              <span class="notif-title-main">${n.title}</span> / 
-              <span class="notif-title-ep">Episode ${n.episode} () ${actionText}</span>
+              <span class="notif-title-main">${escHtml(n.title)}</span> / 
+              <span class="notif-title-ep">Episode ${escHtml(n.episode)} ${actionText}</span>
             </div>
             <div class="notif-time">${timeStr}</div>
           </div>
-        </a>
+        </div>
       `;
     });
   }
@@ -108,6 +109,17 @@ export function renderDropdown(notifications, upcoming, readIds, onMarkAsRead, c
   });
   document.getElementById('tabUpcoming').addEventListener('click', (e) => {
     e.stopPropagation(); onTabSwitch('upcoming');
+  });
+
+  dd.querySelectorAll('.notif-item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = parseInt(el.dataset.id);
+      const notif = activeList.find(n => n.id === id);
+      if (notif && onNotificationClick) {
+        onNotificationClick(notif);
+      }
+    });
   });
 }
 

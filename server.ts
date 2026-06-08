@@ -75,6 +75,80 @@ async function serveStatic(pathname: string): Promise<Response | null> {
   }
 }
 
+// ─── Rate Limiter ─────────────────────────────────────────────────────────
+class RateLimiter {
+  private timestamps: number[] = [];
+  private limit: number;
+  private windowMs: number;
+  private queue: Array<{ resolve: (v: void) => void }> = [];
+
+  constructor(limit: number, windowMs = 60000) {
+    this.limit = limit;
+    this.windowMs = windowMs;
+  }
+
+  async acquire(): Promise<void> {
+    const now = Date.now();
+    this.timestamps = this.timestamps.filter(t => now - t < this.windowMs);
+
+    if (this.timestamps.length < this.limit) {
+      this.timestamps.push(Date.now());
+      return Promise.resolve();
+    }
+
+    return new Promise(resolve => {
+      this.queue.push({ resolve });
+      this.scheduleNext();
+    });
+  }
+
+  private scheduleNext() {
+    if (this.timestamps.length === 0) return;
+    const oldest = this.timestamps[0];
+    const now = Date.now();
+    const timeToWait = Math.max(0, (oldest + this.windowMs) - now);
+    
+    setTimeout(() => {
+      this.timestamps = this.timestamps.filter(t => Date.now() - t < this.windowMs);
+      while (this.queue.length > 0 && this.timestamps.length < this.limit) {
+        this.timestamps.push(Date.now());
+        const task = this.queue.shift();
+        task?.resolve();
+      }
+      if (this.queue.length > 0) {
+         this.scheduleNext();
+      }
+    }, timeToWait);
+  }
+
+  async fetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
+    await this.acquire();
+    let res = await fetch(input, init);
+    
+    if (res.status === 429) {
+      const retryAfter = parseInt(res.headers.get("retry-after") || "1", 10);
+      console.warn(`[RateLimiter] Hit 429. Retrying in ${retryAfter}s...`);
+      await new Promise(r => setTimeout(r, retryAfter * 1000));
+      await this.acquire();
+      res = await fetch(input, init);
+    }
+
+    const remaining = parseInt(res.headers.get("x-ratelimit-remaining") || "", 10);
+    if (!isNaN(remaining) && remaining === 0) {
+       const fakeTimestampsNeeded = this.limit - this.timestamps.length;
+       for (let i = 0; i < fakeTimestampsNeeded; i++) {
+           this.timestamps.push(Date.now());
+       }
+    }
+    
+    return res;
+  }
+}
+
+const anilistLimiter = new RateLimiter(85, 60000); 
+const jikanLimiter = new RateLimiter(55, 60000);
+const malScrapeLimiter = new RateLimiter(2, 1000);
+
 // ─── Jikan v4 (MAL) ───────────────────────────────────────────────────────
 
 /**
@@ -129,7 +203,7 @@ async function fetchMALAnime(params: {
   query.set("limit", String(params.limit ?? 24));
   query.set("sfw", "false");
 
-  const res = await fetch(`https://api.jikan.moe/v4/anime?${query}`);
+  const res = await jikanLimiter.fetch(`https://api.jikan.moe/v4/anime?${query}`);
   if (!res.ok) throw new Error(`Jikan ${res.status}: ${await res.text()}`);
   return await res.json();
 }
@@ -196,7 +270,7 @@ async function fetchAniListAnime(vars: Record<string, unknown>) {
           startDate { year month day } endDate { year month day }
           season seasonYear
           studios(isMain:true) { nodes { name } }
-          tags { name rank isMediaSpoiler isGeneralSpoiler category }
+          tags { name rank isMediaSpoiler isGeneralSpoiler category description }
           characters(perPage: 3, sort: ROLE) {
             edges {
               node { id }
@@ -211,7 +285,7 @@ async function fetchAniListAnime(vars: Record<string, unknown>) {
       }
     }`;
 
-  const res = await fetch("https://graphql.anilist.co", {
+  const res = await anilistLimiter.fetch("https://graphql.anilist.co", {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ query, variables: vars }),
@@ -285,8 +359,8 @@ function buildAniListVars(
   }
 
   const vars: Record<string, unknown> = {
-    page:    parseInt(p.get("page")  ?? "1"),
-    perPage: parseInt(p.get("limit") ?? "24"),
+    page:    Math.min(100, Math.max(1, parseInt(p.get("page")  ?? "1") || 1)),
+    perPage: Math.min(50, Math.max(1, parseInt(p.get("limit") ?? "24") || 24)),
   };
 
   if (p.get("q"))                   vars.search        = p.get("q");
@@ -390,8 +464,8 @@ async function handler(req: Request): Promise<Response> {
         genres:         gIds  || undefined,
         genres_exclude: exIds || undefined,
         order_by, sort,
-        page:  parseInt(p.get("page")  ?? "1"),
-        limit: parseInt(p.get("limit") ?? "24"),
+        page:  Math.min(100, Math.max(1, parseInt(p.get("page")  ?? "1") || 1)),
+        limit: Math.min(50, Math.max(1, parseInt(p.get("limit") ?? "24") || 24)),
         min_score: p.get("min_score") ? parseFloat(p.get("min_score") as string) : undefined,
       }));
     } catch (e) {
@@ -409,7 +483,7 @@ async function handler(req: Request): Promise<Response> {
       let offset = 0;
 
       while (true) {
-        const res = await fetch(
+        const res = await malScrapeLimiter.fetch(
           `https://myanimelist.net/animelist/${username}/load.json?offset=${offset}&status=7`,
           { headers: { "User-Agent": "Mozilla/5.0" } },
         );
@@ -432,7 +506,7 @@ async function handler(req: Request): Promise<Response> {
   if (recMatch) {
     try {
       const malId = recMatch[1];
-      const res   = await fetch(`https://api.jikan.moe/v4/anime/${malId}/recommendations`);
+      const res   = await jikanLimiter.fetch(`https://api.jikan.moe/v4/anime/${malId}/recommendations`);
       if (!res.ok) throw new Error(`Jikan recs ${res.status}`);
       const data  = await res.json();
       return jsonResponse(data);
@@ -460,7 +534,7 @@ async function handler(req: Request): Promise<Response> {
             description
           }
         }`;
-      const res  = await fetch("https://graphql.anilist.co", {
+      const res  = await anilistLimiter.fetch("https://graphql.anilist.co", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ query }),

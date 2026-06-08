@@ -235,13 +235,13 @@ export function renderMyListCards(items, myAnimeList, onCardClick) {
     card.querySelector('.card-body').innerHTML = `
       <div class="card-title">${_statusIcon(a.status)}${escHtml(title)}</div>
       <div class="card-meta">
-        <span style="color:var(--accent2);font-weight:600">${status}</span>
-        <span>${watched} / ${totalEp} ep</span>
-        ${year ? `<span>${year}</span>` : ''}
+        <span style="color:var(--accent2);font-weight:600">${escHtml(status)}</span>
+        <span>${escHtml(watched)} / ${escHtml(totalEp)} ep</span>
+        ${year ? `<span>${escHtml(year)}</span>` : ''}
       </div>
-      <div class="card-my-score-list">${local?.my_score ? `<i class="bi bi-star-fill" style="font-size:.8rem;color:var(--accent2);margin-right:6px"></i>${local.my_score}` : '<span style="color:var(--muted)">—</span>'}</div>
+      <div class="card-my-score-list">${local?.my_score ? `<i class="bi bi-star-fill" style="font-size:.8rem;color:var(--accent2);margin-right:6px"></i>${escHtml(local.my_score)}` : '<span style="color:var(--muted)">—</span>'}</div>
       <div class="card-score-list">${scoreHtml}</div>
-      <div class="card-genres">${langHtml}${genres.map(g => `<span class="genre-tag">${g}</span>`).join('')}</div>`;
+      <div class="card-genres">${langHtml}${genres.map(g => `<span class="genre-tag">${escHtml(g)}</span>`).join('')}</div>`;
 
     card.addEventListener('click', () => onCardClick(a, local));
     grid.appendChild(card);
@@ -278,9 +278,9 @@ export function renderAniListCards(items, onCardClick) {
     const scoreHtml = score !== '—' ? `<i class="bi bi-star-fill" style="font-size:.8rem;color:#ffd166;margin-right:6px"></i>${score}` : '<span style="color:var(--muted)">—</span>';
     card.querySelector('.card-body').innerHTML = `
       <div class="card-title">${_statusIcon(a.status)}${escHtml(title)}</div>
-      <div class="card-meta"><span>${year || '<span style="color:var(--muted)">—</span>'}</span></div>
+      <div class="card-meta"><span>${year ? escHtml(year) : '<span style="color:var(--muted)">—</span>'}</span></div>
       <div class="card-score-list">${scoreHtml}</div>
-      <div class="card-genres">${langHtml}${genres.map(g => `<span class="genre-tag">${g}</span>`).join('')}</div>`;
+      <div class="card-genres">${langHtml}${genres.map(g => `<span class="genre-tag">${escHtml(g)}</span>`).join('')}</div>`;
 
     card.addEventListener('click', () => onCardClick(a));
     grid.appendChild(card);
@@ -305,9 +305,9 @@ export function renderMALCards(items, onCardClick) {
     const scoreHtml = score !== '—' ? `<i class="bi bi-star-fill" style="font-size:.8rem;color:#ffd166;margin-right:6px"></i>${score}` : '<span style="color:var(--muted)">—</span>';
     card.querySelector('.card-body').innerHTML = `
       <div class="card-title">${_statusIcon(a.status)}${escHtml(title)}</div>
-      <div class="card-meta"><span>${year || '<span style="color:var(--muted)">—</span>'}</span></div>
+      <div class="card-meta"><span>${year ? escHtml(year) : '<span style="color:var(--muted)">—</span>'}</span></div>
       <div class="card-score-list">${scoreHtml}</div>
-      <div class="card-genres">${genres.map(g => `<span class="genre-tag">${g}</span>`).join('')}</div>`;
+      <div class="card-genres">${genres.map(g => `<span class="genre-tag">${escHtml(g)}</span>`).join('')}</div>`;
 
     card.addEventListener('click', () => onCardClick(a));
     grid.appendChild(card);
@@ -323,8 +323,8 @@ function _makeCard(i, title, img, score, type) {
       ${img
         ? `<img src="${escHtml(img)}" alt="${escHtml(title)}" loading="lazy" />`
         : `<div class="img-placeholder"><i class="bi bi-film"></i></div>`}
-      ${score !== '—' ? `<div class="card-score"><i class="bi bi-star-fill" style="font-size:.65rem;color:#ffd166"></i>${score}</div>` : ''}
-      ${type ? `<div class="card-type-badge">${type}</div>` : ''}
+      ${score !== '—' ? `<div class="card-score"><i class="bi bi-star-fill" style="font-size:.65rem;color:#ffd166"></i>${escHtml(score)}</div>` : ''}
+      ${type ? `<div class="card-type-badge">${escHtml(type)}</div>` : ''}
     </div>
     <div class="card-body"></div>`;
   return card;
@@ -448,7 +448,7 @@ function _detailHTML({ banner, cover, title, native, score, type, status,
     nextAiringHTML = `
       <div class="mb-3" style="font-size: .85rem;">
         <span style="color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-right: 6px;">Next Episode:</span>
-        <span style="color: #4ade80; font-weight: 600;">Ep ${nextAiring.episode} airs in ${timeStr.join(' ')}</span>
+        <span style="color: #4ade80; font-weight: 600;">Ep ${escHtml(nextAiring.episode)} airs in ${escHtml(timeStr.join(' '))}</span>
       </div>`;
   }
 
@@ -507,7 +507,7 @@ let _pendingTags = [];
 
 function _chip(icon, label, val) {
   return `<div class="stat-chip"><span>${icon}</span>
-    <div><div class="label">${label}</div><div>${val}</div></div></div>`;
+    <div><div class="label">${escHtml(label)}</div><div>${escHtml(val)}</div></div></div>`;
 }
 
 // ── Pagination ─────────────────────────────────────────────────────────────
@@ -657,10 +657,20 @@ export function injectRecsPlaceholder() {
     const pct   = t.rank;
     // purple for normal, pink for spoiler
     const color = isSpoiler ? '#ff6eb4' : '#b76eff';
+    
+    let tooltipAttrs = `title="${escHtml(t.category || '')}"`;
+    if (t.description) {
+      const titleName = isSpoiler ? `${escHtml(t.name)} <i class="bi bi-eye-slash" style="opacity:0.6;font-size:0.8rem;margin-left:4px"></i>` : escHtml(t.name);
+      const catHtml = t.category ? `<div style="font-size:0.7rem;color:var(--accent);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">${escHtml(t.category)}</div>` : '';
+      const tooltipContent = `${catHtml}<strong>${titleName}</strong><br/><span style="color:var(--muted);font-size:0.85rem">${escHtml(t.description)}</span>`;
+      const safeTooltipContent = tooltipContent.replace(/"/g, '&quot;');
+      tooltipAttrs = `data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" data-bs-custom-class="tag-tooltip-theme" title="${safeTooltipContent}"`;
+    }
+
     return `
       <div class="tag-bar-row${isSpoiler ? ' tag-spoiler' : ''}"
-           style="${isSpoiler ? 'display:none;' : ''}">
-        <div class="tag-bar-name" title="${escHtml(t.category || '')}">
+           style="${isSpoiler ? 'display:none;' : ''}" ${tooltipAttrs}>
+        <div class="tag-bar-name">
           ${isSpoiler ? '<i class="bi bi-eye-slash" style="font-size:.65rem;margin-right:4px;opacity:.6"></i>' : ''}
           ${escHtml(t.name)}
         </div>
@@ -729,6 +739,10 @@ export function injectRecsPlaceholder() {
     ${tagsHTML}`;
 
   body.appendChild(section);
+
+  if (window.bootstrap && bootstrap.Tooltip) {
+    section.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el, { delay: { show: 150, hide: 0 } }));
+  }
 
   // Wire spoiler toggle — shows/hides .tag-spoiler rows inline within the sorted list
   const toggleBtn = section.querySelector('#spoilerToggleBtn');
@@ -820,7 +834,7 @@ export function renderRelations(relations, onRelationClick) {
           font-size:.84rem; font-weight:700; line-height:1.3; margin-bottom:4px;
           white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
         " title="${escHtml(title)}">${escHtml(title)}</div>
-        <div style="font-size:.72rem; color:var(--muted); margin-bottom:6px;">${year}${year && entry.format ? ' · ' : ''}${entry.format || ''}</div>
+        <div style="font-size:.72rem; color:var(--muted); margin-bottom:6px;">${escHtml(String(year))}${year && entry.format ? ' · ' : ''}${escHtml(entry.format || '')}</div>
         <div style="
           display:inline-flex; align-items:center; gap:5px;
           background:${badgeColor}22; border:1px solid ${badgeColor}55;
@@ -898,7 +912,7 @@ export function renderRecommendations(recs, onRecClick) {
             font-size:.68rem; font-weight:700; padding:2px 5px;
             color:#ffd166; display:flex; align-items:center; gap:2px;
           ">
-            <i class="bi bi-star-fill" style="font-size:.55rem"></i>${score}
+            <i class="bi bi-star-fill" style="font-size:.55rem"></i>${escHtml(score)}
           </div>` : ''}
         ${type ? `
           <div style="
@@ -906,7 +920,7 @@ export function renderRecommendations(recs, onRecClick) {
             background:var(--accent); border-radius:4px;
             font-size:.6rem; font-weight:700; padding:1px 5px;
             letter-spacing:.04em; text-transform:uppercase; color:#fff;
-          ">${type}</div>` : ''}
+          ">${escHtml(type)}</div>` : ''}
         ${votes > 0 ? `
           <div style="
             position:absolute; bottom:5px; right:5px;
@@ -915,7 +929,7 @@ export function renderRecommendations(recs, onRecClick) {
             font-size:.65rem; font-weight:700; padding:2px 5px;
             color:var(--accent2); display:flex; align-items:center; gap:3px;
           ">
-            <i class="bi bi-hand-thumbs-up-fill" style="font-size:.55rem"></i>${votes}
+            <i class="bi bi-hand-thumbs-up-fill" style="font-size:.55rem"></i>${escHtml(votes)}
           </div>` : ''}
       </div>
       <div style="padding:7px 8px 9px;">
@@ -925,7 +939,7 @@ export function renderRecommendations(recs, onRecClick) {
           -webkit-box-orient:vertical; overflow:hidden;
           margin-bottom:3px;
         ">${escHtml(title)}</div>
-        <div style="font-size:.68rem; color:var(--muted);">${year}</div>
+        <div style="font-size:.68rem; color:var(--muted);">${escHtml(year)}</div>
       </div>`;
 
     card.addEventListener('mouseenter', () => {
@@ -956,6 +970,16 @@ export function renderRecommendations(recs, onRecClick) {
 export function renderTagMenu(groupedTags, tagsIn, tagsEx, filterText = '', minPct = 0) {
   const list = dom.tagList();
   if (!list) return;
+
+  const escHtml = s => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  if (window.bootstrap && bootstrap.Tooltip) {
+    list.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+      const tooltip = bootstrap.Tooltip.getInstance(el);
+      if (tooltip) tooltip.dispose();
+    });
+  }
+
   list.innerHTML = '';
 
   const lower = filterText.toLowerCase();
@@ -989,7 +1013,18 @@ export function renderTagMenu(groupedTags, tagsIn, tagsEx, filterText = '', minP
         + (exActive ? ' tag-chip-ex'  : '')
         + (tag.isGeneralSpoiler ? ' tag-chip-spoiler' : '');
       chip.dataset.tag = tag.name;
-      chip.title = tag.isGeneralSpoiler ? `${tag.name} (spoiler)` : tag.name;
+      
+      if (tag.description) {
+        const titleName = tag.isGeneralSpoiler ? `${escHtml(tag.name)} <i class="bi bi-eye-slash" style="opacity:0.6;font-size:0.8rem;margin-left:4px"></i>` : escHtml(tag.name);
+        chip.dataset.bsToggle = 'tooltip';
+        chip.dataset.bsPlacement = 'top';
+        chip.dataset.bsHtml = 'true';
+        chip.dataset.bsCustomClass = 'tag-tooltip-theme';
+        chip.title = `<strong>${titleName}</strong><br/><span style="color:var(--muted);font-size:0.85rem">${escHtml(tag.description)}</span>`;
+      } else {
+        chip.title = tag.isGeneralSpoiler ? `${tag.name} (spoiler)` : tag.name;
+      }
+      
       chip.textContent = tag.name;
       chips.appendChild(chip);
     });
@@ -1000,6 +1035,10 @@ export function renderTagMenu(groupedTags, tagsIn, tagsEx, filterText = '', minP
   if (!anyVisible) {
     list.innerHTML = `<div style="color:var(--muted);font-size:.82rem;padding:10px 0;text-align:center">
       No tags found</div>`;
+  }
+
+  if (window.bootstrap && bootstrap.Tooltip) {
+    list.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el, { delay: { show: 150, hide: 0 } }));
   }
 }
 

@@ -51,6 +51,7 @@ export function setMyAnimeList(list) {
 export function clearMyAnimeList() {
   myAnimeList = [];
   localStorage.removeItem('myAnimeList');
+  clearEnrichedCache();
 }
 
 // ── Username ───────────────────────────────────────────────────────────────
@@ -62,26 +63,105 @@ export function setSavedUsername(username) {
   localStorage.setItem('malUsername', username);
 }
 
-// ── Enriched cache (stats page) ────────────────────────────────────────────
+// ── Enriched cache (stats page) via IndexedDB ──────────────────────────────
 export const ENRICH_KEY = 'animeEnrichedData';
+const DB_NAME = 'AnimeBrowserDB';
+const STORE_NAME = 'cacheStore';
 
-export function getEnrichedCache() {
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getEnrichedCache() {
   try {
-    return JSON.parse(localStorage.getItem(ENRICH_KEY) || 'null');
-  } catch {
+    const db = await openIDB();
+    const data = await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get(ENRICH_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+
+    if (data) return data;
+
+    // Auto-migrate old localStorage data into IndexedDB
+    const localDataRaw = localStorage.getItem(ENRICH_KEY);
+    if (localDataRaw) {
+      try {
+        const localData = JSON.parse(localDataRaw);
+        await setEnrichedCache(localData);
+        localStorage.removeItem(ENRICH_KEY);
+        return localData;
+      } catch (err) {
+        console.warn('Failed to parse old localStorage data during migration', err);
+      }
+    }
+
     return null;
-  }
-}
-
-export function setEnrichedCache(data) {
-  try {
-    localStorage.setItem(ENRICH_KEY, JSON.stringify(data));
   } catch (e) {
-    console.warn('localStorage full, enriched cache not saved:', e);
+    console.warn('IndexedDB read failed, falling back to localStorage:', e);
+    try {
+      return JSON.parse(localStorage.getItem(ENRICH_KEY) || 'null');
+    } catch {
+      return null;
+    }
   }
 }
 
-export function clearEnrichedCache() {
+export async function setEnrichedCache(data) {
+  try {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.put(data, ENRICH_KEY);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.warn('IndexedDB write failed, falling back to localStorage:', e);
+    try {
+      localStorage.setItem(ENRICH_KEY, JSON.stringify(data));
+    } catch (err) {
+      console.warn('localStorage also full, enriched cache not saved:', err);
+    }
+  }
+}
+
+export async function clearEnrichedCache() {
+  try {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.delete(ENRICH_KEY);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.warn('IndexedDB delete failed, clearing localStorage fallback:', e);
+  }
   localStorage.removeItem(ENRICH_KEY);
 }
+
+// ── Tab Synchronization ────────────────────────────────────────────────────
+window.addEventListener('storage', (event) => {
+  if (event.key === 'myAnimeList') {
+    myAnimeList = JSON.parse(event.newValue || '[]');
+    window.dispatchEvent(new CustomEvent('myAnimeListUpdated'));
+  } else if (event.key === 'malUsername') {
+    window.dispatchEvent(new CustomEvent('malUsernameUpdated'));
+  }
+});
 

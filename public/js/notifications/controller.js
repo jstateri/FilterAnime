@@ -13,8 +13,10 @@ let notifications = [];
 let upcoming = [];
 let isOpen = false;
 let currentTab = 'new'; // Can be 'new' or 'upcoming'
+let onNotificationClickCb = null;
 
-export async function initNotifications() {
+export async function initNotifications(onNotificationClick) {
+  if (onNotificationClick) onNotificationClickCb = onNotificationClick;
   renderBell(toggleDropdown);
   document.addEventListener('click', (e) => {
     if (isOpen && !e.target.closest('.notif-container')) {
@@ -54,6 +56,7 @@ export async function refreshNotifications() {
         const item = {
           id: node.id,
           mediaIdMal: media.idMal,
+          alId: media.id,
           title: media.title?.english || media.title?.romaji || 'Unknown',
           cover: media.coverImage?.large,
           episode: node.episode,
@@ -85,7 +88,7 @@ function _refreshUI() {
   const readIds = getReadNotificationIds();
   const unreadCount = notifications.filter(n => !readIds.includes(n.id)).length;
   updateBadge(unreadCount);
-  renderDropdown(notifications, upcoming, readIds, handleMarkAsRead, currentTab, handleTabSwitch);
+  renderDropdown(notifications, upcoming, readIds, handleMarkAsRead, currentTab, handleTabSwitch, handleNotificationClick);
 }
 
 function toggleDropdown() {
@@ -102,4 +105,10 @@ function handleMarkAsRead() {
 function handleTabSwitch(tabName) {
   currentTab = tabName;
   _refreshUI();
+}
+
+function handleNotificationClick(notif) {
+  isOpen = false;
+  setDropdownVisible(false);
+  if (onNotificationClickCb) onNotificationClickCb(notif);
 }
